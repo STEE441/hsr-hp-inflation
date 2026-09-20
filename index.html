@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>星穹铁道 · 终局玩法血量膨胀分析</title>
+<meta name="description" content="崩坏星穹铁道四种终局玩法（混沌回忆/虚构叙事/末日幻影/异相仲裁）跨版本血量膨胀曲线与数学分析" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+<meta name="color-scheme" content="dark" />
+<style>
+:root {
+  --bg: #0a0f1e;
+  --bg-card: #0f172a;
+  --bg-card-2: #111a2e;
+  --border: #1e293b;
+  --border-strong: #2b3a55;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent: #38bdf8;
+  --warn: #f4511e;
+  --ok: #16a34a;
+  --c-chaos: #38bdf8;
+  --c-fiction: #a78bfa;
+  --c-shadow: #f59e0b;
+  --c-arb: #34d399;
+  --glow: 0 0 24px rgba(56, 189, 248, 0.12);
+  --radius: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "SF Pro Display", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(56, 189, 248, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 0%, rgba(167, 139, 250, 0.06), transparent);
+}
+.container { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
+
+/* ---------- Header ---------- */
+header {
+  padding: 28px 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, #38bdf8, #a78bfa);
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 20px; color: #0a0f1e;
+  box-shadow: var(--glow);
+}
+h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+.subtitle { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+.meta-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.meta-chip {
+  font-size: 12px; padding: 6px 12px; border-radius: 999px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); white-space: nowrap;
+}
+.meta-chip b { color: var(--accent); font-weight: 600; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--bg-card);
+  color: var(--text); font-size: 13px; font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; }
+.btn-primary:hover { filter: brightness(1.15); }
+
+/* ---------- KPI Cards ---------- */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px; margin: 8px 0 22px;
+}
+.kpi-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+  position: relative; overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.kpi-card:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+.kpi-card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--mode-color, var(--accent));
+}
+.kpi-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.kpi-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--mode-color); box-shadow: 0 0 10px var(--mode-color); }
+.kpi-name { font-size: 14px; font-weight: 700; }
+.kpi-count { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+.kpi-hp { font-size: 24px; font-weight: 800; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+.kpi-hp small { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+.kpi-sub { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.kpi-sub span b { color: var(--text); font-weight: 700; }
+.up { color: var(--warn) !important; }
+.down { color: var(--ok) !important; }
+
+/* ---------- Section ---------- */
+.section { margin-top: 26px; }
+.section-title {
+  font-size: 16px; font-weight: 800; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: linear-gradient(180deg, #38bdf8, #a78bfa); }
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+}
+
+/* ---------- Tabs ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tab {
+  padding: 9px 16px; border-radius: 10px; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 7px;
+  transition: all 0.2s ease;
+}
+.tab:hover { color: var(--text); border-color: var(--border-strong); }
+.tab.active { color: #fff; border-color: var(--mode-color); background: var(--bg-card-2); box-shadow: 0 0 16px rgba(0,0,0,0.2); }
+.tab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mode-color); }
+
+/* ---------- Chart ---------- */
+.chart-box { position: relative; }
+.chart { width: 100%; height: 420px; }
+.chart-toolbar { position: absolute; top: 8px; right: 8px; z-index: 5; display: flex; gap: 6px; }
+/* 自定义图例：只在异相仲裁子指标模式显示（ECharts 自带图例会混入淡出用的临时曲线） */
+.main-legend { display: none; align-items: center; gap: 14px; margin-right: 6px; font-size: 12px; color: var(--text-muted); }
+.main-legend .lg-item { display: inline-flex; align-items: center; gap: 6px; transition: color .2s ease, opacity .2s ease; }
+.main-legend .lg-item i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; transition: opacity .2s ease; }
+.main-legend .lg-item.on { color: var(--text); font-weight: 600; }
+.mini-btn {
+  padding: 5px 10px; font-size: 11px; border-radius: 7px; cursor: pointer;
+  background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border);
+  color: var(--text-muted); transition: all 0.15s ease;
+}
+.mini-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.mini-btn.active { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- Analysis ---------- */
+/* 4 张卡：≥1000px 用 2×2（永不出现 3+1 孤儿卡）；<1000px 单列 */
+.analysis-grid {
+  display: grid; grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 1000px) {
+  .analysis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.analysis-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.analysis-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.analysis-card .desc { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+.analysis-chart { width: 100%; height: 260px; }
+.stat-line { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+.stat-line:last-child { border-bottom: none; }
+.stat-line .label { color: var(--text-muted); }
+.stat-line .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- 膨胀拐点卡片 ---------- */
+.tp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tp-card {
+  position: relative; padding: 12px 14px; border-radius: 10px;
+  background: linear-gradient(160deg, rgba(56,189,248,0.07), rgba(15,23,42,0.35));
+  border: 1px solid var(--border); border-left: 3px solid var(--accent, #38BDF8);
+}
+.tp-card.tp-runaway {
+  border-left-color: #F4511E;
+  background: linear-gradient(160deg, rgba(244,81,30,0.14), rgba(15,23,42,0.4));
+  box-shadow: 0 0 0 1px rgba(244,81,30,0.18) inset;
+}
+.tp-tag { font-size: 11px; letter-spacing: .04em; color: var(--accent, #38BDF8); font-weight: 700; }
+.tp-runaway .tp-tag { color: #F4511E; }
+.tp-ver { font-size: 20px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tp-name { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.tp-num { font-size: 15px; font-weight: 700; margin-top: 7px; font-variant-numeric: tabular-nums; color: #38BDF8; }
+.tp-runaway .tp-num { color: #F4511E; }
+.tp-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+
+/* ---------- Fit badge ---------- */
+.fit-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; margin-left: 8px;
+}
+.fit-exp { background: rgba(244, 81, 30, 0.15); color: var(--warn); }
+.fit-lin { background: rgba(22, 163, 74, 0.15); color: var(--ok); }
+
+/* ---------- Table ---------- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th {
+  position: sticky; top: 0; background: var(--bg-card-2);
+  color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-strong);
+  font-size: 12px;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:hover { background: rgba(56, 189, 248, 0.04); }
+td { font-variant-numeric: tabular-nums; }
+
+footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 12px; text-align: center; }
+footer a { color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .chart { height: 300px; }
+  h1 { font-size: 18px; }
+  .kpi-hp { font-size: 20px; }
+  .analysis-chart { height: 240px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="logo">∞</div>
+      <div>
+        <h1>终局玩法血量膨胀分析</h1>
+        <div class="subtitle">崩坏：星穹铁道 · 四种终局玩法跨版本数值追踪</div>
+      </div>
+    </div>
+    <div class="meta-bar">
+      <span class="meta-chip">数据版本 <b id="meta-ver">—</b></span>
+      <span class="meta-chip">正式服 <b id="meta-live">—</b></span>
+      <span class="meta-chip">更新于 <b id="meta-date">—</b></span>
+      <button class="btn btn-primary" id="btn-export">导出高清图</button>
+    </div>
+  </header>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="section">
+    <div class="section-title">血量膨胀曲线</div>
+    <div class="card">
+      <div class="tabs" id="main-tabs"></div>
+      <div class="chart-box">
+        <div class="chart-toolbar">
+          <div class="main-legend" id="main-legend"></div>
+          <button class="mini-btn" id="btn-log" title="对数/线性Y轴">对数Y轴</button>
+          <button class="mini-btn" id="btn-smooth" title="平滑曲线">平滑</button>
+        </div>
+        <div class="chart" id="main-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">数学分析</div>
+    <div class="analysis-grid">
+      <div class="analysis-card">
+        <h3>环比膨胀率</h3>
+        <div class="desc">相邻版本血量增长率 = (Hₙ − Hₙ₋₁) / Hₙ₋₁</div>
+        <div class="analysis-chart" id="chart-rate"></div>
+      </div>
+      <div class="analysis-card">
+        <h3>相对基准倍数</h3>
+        <div class="desc">相对首个版本的血量倍数 = Hₙ / H₁</div>
+        <div class="analysis-chart" id="chart-multi"></div>
+      </div>
+      <div class="analysis-card">
+        <h3>曲线拟合</h3>
+        <div class="desc">指数 / 线性拟合与拟合优度 R²</div>
+        <div class="analysis-chart" id="chart-fit"></div>
+      </div>
+      <div class="analysis-card">
+        <h3>膨胀加速度</h3>
+        <div class="desc">环比膨胀率的逐期变化（拐点检测）</div>
+        <div class="analysis-chart" id="chart-accel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">膨胀拐点 · 失控起点</div>
+    <div class="card">
+      <div class="desc" style="margin-bottom:12px">
+        按「环比膨胀率 ≥40% 视为跳升、≥60% 视为暴涨」筛出关键转折点；<b>失控起点</b>指该期之后
+        血量进入持续高位、再未回落到此前水平的版本。
+      </div>
+      <div id="turning-points"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">统计摘要</div>
+    <div class="card">
+      <div id="stats-summary"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">全玩法归一化对比</div>
+    <div class="card">
+      <div class="chart" id="chart-compare" style="height:340px"></div>
+    </div>
+  </div>
+
+  <footer>
+    数据来源 <a href="https://hsr.nanoka.cc/maze/" target="_blank" rel="noopener">nanoka.cc</a> ·
+    仅抓取正式服版本 · 每周自动更新 · 血量单位：单体等效生命值
+  </footer>
+</div>
+
+<script src="assets/echarts.min.js"></script>
+<!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
+     若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
+     「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
+<script src="data/health_data.js?v=20260920"></script>
+<script>
+(function () {
+  "use strict";
+  const DATA = window.HP_DATA;
+  if (!DATA) { document.body.innerHTML = "<p style='padding:40px;text-align:center;color:#f4511e'>数据加载失败：找不到 window.HP_DATA</p>"; return; }
+
+  const MODES = [
+    { key: "chaosMemory", name: "混沌回忆", color: "#38bdf8", hpKey: "hp" },
+    { key: "pureFiction", name: "虚构叙事", color: "#a78bfa", hpKey: "hp" },
+    { key: "apocalypticShadow", name: "末日幻影", color: "#f59e0b", hpKey: "hp" },
+    { key: "divergentArbitration", name: "异相仲裁", color: "#34d399", hpKey: "knights", subKeys: ["knights", "king", "kingAbyss"], subNames: ["三骑士总和", "王棋", "绝境王棋"] },
+  ];
+
+  const BG = "#0a0f1e";
+  const TXT = "#e2e8f0";
+  const MUTED = "#94a3b8";
+  const DIM = "#64748b";
+  const BORDER = "#1e293b";
+  const axisStyle = { color: DIM, fontSize: 11 };
+  const splitLine = { lineStyle: { color: "rgba(30,41,59,0.6)" } };
+
+  // 元信息
+  document.getElementById("meta-ver").textContent = DATA.meta.dataVersion;
+  document.getElementById("meta-live").textContent = DATA.meta.liveVersion || "—";
+  document.getElementById("meta-date").textContent = (DATA.meta.generatedAt || "").slice(0, 10);
+
+  let activeMode = 0;
+  let activeSubKey = null; // 异相仲裁的子指标（knights/king/kingAbyss）
+  let logY = false;
+  let smooth = true;
+  const charts = {};
+  // 上一次渲染的 series 条数：用于判断是否需要 replaceMerge 重建 series 集合
+  let shownCount = -1;
+  let prevIds = [];            // 上一次渲染的 series id 列表
+  let tweenTimer = null;       // 子指标亮暗过渡的计时器
+  let currentStyle = {};       // 各曲线当前实际的透明度/线宽（作为下次过渡的起点）
+  let subKeyChanged = false;   // 本次渲染是否发生了子指标高亮变化
+  let lastSubKey = null;       // 上一次绘制的高亮子指标
+
+  function fmt(n) {
+    if (n == null || !isFinite(n)) return "—";
+    if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + " 亿";
+    if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + " 万";
+    return Math.round(n).toLocaleString();
+  }
+  function fmtPct(n) {
+    if (n == null || !isFinite(n)) return "—";
+    return (n * 100).toFixed(1) + "%";
+  }
+
+  // ---------- KPI 卡片 ----------
+  function renderKPI() {
+    const grid = document.getElementById("kpi-grid");
+    grid.innerHTML = "";
+    MODES.forEach((m, i) => {
+      const modeData = DATA[m.key] || {};
+      const arr = modeData.data || [];
+      if (!arr.length) return;
+      const first = arr[0], last = arr[arr.length - 1];
+      const firstHp = first[m.hpKey] || 0;
+      const lastHp = last[m.hpKey] || 0;
+      const mult = firstHp ? lastHp / firstHp : 0;
+      const rate = arr.length > 1 ? (lastHp - arr[arr.length - 2][m.hpKey]) / arr[arr.length - 2][m.hpKey] : 0;
+      const el = document.createElement("div");
+      el.className = "kpi-card";
+      el.style.setProperty("--mode-color", m.color);
+      let subExtra = "";
+      if (m.subKeys) {
+        const parts = m.subKeys.map((k, idx) => `${m.subNames[idx]} <b>${fmt(last[k])}</b>`).join(" · ");
+        subExtra = `<div style="margin-top:6px;font-size:11px;color:var(--text-dim)">${parts}</div>`;
+      }
+      el.innerHTML = `
+        <div class="kpi-head"><span class="kpi-dot"></span><span class="kpi-name">${m.name}</span><span class="kpi-count">${arr.length} 个版本</span></div>
+        <div class="kpi-hp">${fmt(lastHp)}<small> 当前血量</small></div>
+        <div class="kpi-sub">
+          <span>总膨胀 <b class="${mult >= 10 ? "up" : ""}">${mult.toFixed(2)}×</b></span>
+          <span>最近环比 <b class="${rate > 0 ? "up" : "down"}">${fmtPct(rate)}</b></span>
+        </div>
+        ${subExtra}`;
+      el.addEventListener("click", () => switchMode(i));
+      grid.appendChild(el);
+    });
+  }
+
+  // ---------- Tab ----------
+  function renderTabs() {
+    const tabs = document.getElementById("main-tabs");
+    tabs.innerHTML = "";
+    MODES.forEach((m, i) => {
+      const t = document.createElement("div");
+      t.className = "tab" + (i === activeMode ? " active" : "");
+      t.style.setProperty("--mode-color", m.color);
+      t.innerHTML = `<span class="tab-dot"></span>${m.name}`;
+      t.addEventListener("click", () => switchMode(i));
+      tabs.appendChild(t);
+    });
+    renderSubTabs();
+  }
+
+  // 异相仲裁子指标选择器（骑士/王棋/绝境王棋 分开分析）
+  function renderSubTabs() {
+    let el = document.getElementById("sub-tabs");
+    const m = MODES[activeMode];
+    if (!m.subKeys) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "sub-tabs";
+      el.className = "tabs";
+      el.style.marginTop = "-6px";
+      document.getElementById("main-tabs").after(el);
+    }
+    el.innerHTML = "";
+    m.subKeys.forEach((k, idx) => {
+      const t = document.createElement("div");
+      const active = (activeSubKey || m.subKeys[0]) === k;
+      t.className = "tab" + (active ? " active" : "");
+      t.style.setProperty("--mode-color", m.color);
+      t.style.fontSize = "12px";
+      t.innerHTML = `<span class="tab-dot"></span>${m.subNames[idx]}`;
+      t.addEventListener("click", () => selectSubKey(k));
+      el.appendChild(t);
+    });
+  }
+
+  // 切换异相仲裁的高亮子指标。图例与上方 Tab 共用这一处逻辑，避免两处行为不一致。
+  function selectSubKey(k) {
+    if (!k || activeSubKey === k) return;   // 重复点击同一指标不重放动画
+    activeSubKey = k;
+    renderSubTabs();
+    renderMainChart();
+    renderAnalyses();
+    renderStats();
+    renderTurningPoints();
+  }
+
+  function switchMode(i) {
+    if (activeMode === i && !activeSubKey) return;   // 重复点击同一玩法不重放动画
+    activeMode = i;
+    activeSubKey = null;
+    renderTabs();
+    renderMainChart();
+    renderAnalyses();
+    renderStats();
+    renderTurningPoints();
+  }
+
+  function currentSeries() {
+    const m = MODES[activeMode];
+    const arr = (DATA[m.key] || {}).data || [];
+    let key = m.hpKey;
+    if (m.subKeys) key = activeSubKey || m.subKeys[0];
+    return { mode: m, arr, key };
+  }
+
+  function xLabels(arr) {
+    // 统一使用游戏版本号（如 4.5）。seasonId 只是上游原始编号（s3020 / 2026），
+    // 不作为对外展示，避免版本号回退成 s 开头。
+    return arr.map(x => x.version || "");
+  }
+
+  function hpValues(arr, key) {
+    return arr.map(x => x[key] || 0);
+  }
+
+  // ---------- 主图 ----------
+
+  function renderMainChart() {
+    const { mode, arr } = currentSeries();
+    const el = document.getElementById("main-chart");
+    if (!charts.main) charts.main = echarts.init(el, null, { renderer: "canvas" });
+    const c = charts.main;
+
+
+    // 版本 → 关卡名映射（悬停时显示）
+    const nameMap = {};
+    arr.forEach(x => { nameMap[x.version || ""] = x.name || ""; });
+
+    const series = [];
+    if (mode.subKeys) {
+      const subColors = [mode.color, "#f59e0b", "#f4511e"];
+      const curKey = activeSubKey || mode.subKeys[0];
+      mode.subKeys.forEach((k, idx) => {
+        const isActive = k === curKey;
+        // 选中曲线高亮，其余暗下去
+        series.push({
+          id: k,               // 固定 id：切换指标时做形变过渡而非重建
+          name: mode.subNames[idx],
+          type: "line",
+          data: hpValues(arr, k),
+          smooth,
+          symbol: "circle",
+          symbolSize: isActive ? 7 : 4,
+          // 非高亮曲线不能压得太暗：0.22 时在深色底上几乎看不见
+          // （实测像素数 679 vs 高亮曲线 70470，差了两个数量级），
+          // 0.42 能保持「主次分明」的同时，让另外两条仍是可读的对照参考。
+          lineStyle: {
+            width: isActive ? 3.2 : 1.8,
+            color: subColors[idx],
+            opacity: isActive ? 1 : 0.42,
+          },
+          itemStyle: { color: subColors[idx], opacity: isActive ? 1 : 0.42 },
+          areaStyle: isActive ? { opacity: 0.12, color: subColors[idx] } : { opacity: 0 },
+          z: isActive ? 10 : 1,
+          emphasis: { focus: "series" },
+        });
+      });
+    } else {
+      series.push({
+        // 所有玩法的总血量曲线共用同一个固定 id：切换玩法时 ECharts 会把它当作
+        // 「同一条曲线的数据更新」，从而播放原生的形变动画（曲线保持可见、位置平滑移动）。
+        // 若 id 随玩法变化（如 chaosMemory_total → pureFiction_total），ECharts 会视为
+        // 两条不相干的曲线，旧的被删除、新的凭空出现，只能得到瞬变。
+        id: "main_total",
+        name: "总血量",
+        type: "line",
+        data: hpValues(arr, mode.hpKey),
+        smooth,
+        symbol: "circle",
+        symbolSize: 6,
+        lineStyle: { width: 2.5, color: mode.color },
+        itemStyle: { color: mode.color },
+        areaStyle: { opacity: 0.14, color: mode.color },
+        emphasis: { focus: "series" },
+      });
+    }
+
+    const animUpdate = {
+      // 形变过渡：同一曲线在新旧数据间平滑移动
+      animation: true,
+      animationDuration: 520,
+      animationDurationUpdate: 650,
+      animationEasing: "cubicOut",
+      animationEasingUpdate: "cubicInOut",
+      // animationThreshold 是「超过多少个数据点时放弃动画」的阈值，默认 2000。
+      // 绝不能设为 0 —— 0 会被判定为 falsy，反而让所有更新都拿不到动画（曲线直接瞬变）。
+      // 这里设一个足够大的值，确保全部数据点都参与补间。
+      animationThreshold: 100000,
+
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(15,23,42,0.95)",
+        borderColor: BORDER,
+        textStyle: { color: TXT, fontSize: 12 },
+        formatter: (params) => {
+          if (!params || !params.length) return "";
+          const v = params[0].axisValue;
+          const nm = nameMap[v] || "";
+          let html = `<div style="font-weight:700;margin-bottom:4px;color:${mode.color}">${v}${nm ? " · " + nm : ""}</div>`;
+          params.forEach(x => {
+            html += `<div style="margin-top:3px">${x.marker}<span style="color:${TXT}">${x.seriesName}: </span><b style="font-variant-numeric:tabular-nums">${fmt(x.value)}</b></div>`;
+          });
+          return html;
+        },
+      },
+      // 关闭 ECharts 自带图例：它只会按 series 的 name 直出一行标签，
+      // 与工具栏里的自定义图例（#main-legend）内容重复、上下叠成两行。
+      // 自定义图例可点击切换高亮，功能更强，这里直接不显示。
+      legend: { show: false },
+      // grid.left 留足左侧空间：Y 轴刻度经 fmt() 会输出「5000.00 万」「2.50 亿」这类
+      // 较长的文本，left 太小（如 10）时标签会紧贴卡片左边缘甚至被裁掉。
+      // containLabel 负责按标签宽度撑开绘图区，left 则给标签本身留出外边距。
+      grid: { left: 56, right: 24, top: 46, bottom: 8, containLabel: true },
+      xAxis: {
+        type: "category", data: xLabels(arr),
+        axisLine: { lineStyle: { color: BORDER } },
+        axisLabel: { ...axisStyle, rotate: arr.length > 16 ? 45 : 0, interval: arr.length > 16 ? "auto" : 0 },
+      },
+      yAxis: {
+        type: logY ? "log" : "value",
+        // min/max 必须显式写成 null（= 交给 ECharts 自适应），不能省略。
+        // ECharts 的 setOption 默认是「合并」语义：一旦某个关卡写过固定的 min/max，
+        // 后续切到别的关卡时只要不显式覆盖，旧范围就会一直残留 ——
+        // 表现为「看过一次最高血量的关卡，之后所有关卡的 Y 轴都被撑大、不再自适应」。
+        // 写 null 才能把轴范围交还给自动计算，每个关卡各用各的刻度。
+        min: null,
+        max: null,
+        // nameGap / nameTextStyle 留白，避免顶部的轴名与曲线起点贴在一起
+        nameTextStyle: { ...axisStyle, padding: [0, 0, 0, 0] },
+        axisLabel: {
+          ...axisStyle,
+          // 给刻度标签留出固定宽度：fmt() 会输出「5000.00 万」这类较长的文本，
+          // 不设 margin 时会顶到网格左边界之外（曾出现标签越出图表的观感问题）。
+          margin: 10,
+          formatter: v => fmt(v),
+        },
+        splitLine,
+      },
+    };
+
+    const isSubMode = !!mode.subKeys;
+
+    // 统一走 ECharts 原生形变动画。
+    //
+    // 关键在于 series 的 id 保持稳定：
+    //   - 四种玩法共用同一个 id（main_total），切换玩法时 ECharts 视为
+    //     「同一条曲线的数据更新」，播放形变动画（曲线保持可见、位置平滑移动）；
+    //   - 异相仲裁三条曲线的 id 固定为 knights / king / kingAbyss，切换高亮时
+    //     同理得到形变 + 颜色/透明度过渡。
+    //
+    // 曾经用「旧曲线淡出 + 新曲线淡入」的自制交叉过渡，效果反而更差：
+    // 两条半透明曲线叠在同一位置，中间时刻两边都接近透明，曲线会「消失一下」，
+    // 观感比原生形变生硬得多。原生形变没有这个问题，且无需自行驱动动画。
+    //
+    // replaceMerge 只在「series 集合真的发生变化」时使用：
+    //   - 玩法之间切换：曲线条数会变（1 条 ↔ 3 条），必须用 replaceMerge 重建集合；
+    //   - 子指标之间切换：id 集合完全相同（knights/king/kingAbyss），不需要重建 ——
+    //     带上 replaceMerge 会强制重建 series，反而把原生形变动画打断成瞬变。
+    // 判定子指标高亮是否变化（用于决定是否播放亮暗过渡）
+    const curActiveKey = mode.subKeys ? (activeSubKey || mode.subKeys[0]) : null;
+    subKeyChanged = isSubMode && lastSubKey !== null && lastSubKey !== curActiveKey;
+    lastSubKey = curActiveKey;
+
+    const needReplace = series.length !== shownCount;
+    const sameSet = !needReplace && series.map(s => s.id).join() === prevIds.join();
+    shownCount = series.length;
+    prevIds = series.map(s => s.id);
+
+    if (sameSet && subKeyChanged) {
+      // ---- 子指标切换：曲线几何完全相同，只是高亮对象变了 ----
+      // 此时 ECharts 的形变动画帮不上忙：三条曲线的数据没变、坐标没变，
+      // 没有「位置」可供补间，动画在视觉上等于没有。所以这里显式补间
+      // 不透明度与线宽（曲线全程可见，只是亮暗互换），几何仍由 ECharts 静态绘制。
+      tweenHighlight(c, series);
+      renderLegend();
+      return;
+    }
+
+    // 记录每条曲线「当前实际」的样式，作为下一次过渡的起点。
+    // 必须在每次普通渲染后同步更新，否则首次进入某玩法时 currentStyle 为空，
+    // 过渡起点会退化成终点值，插值无变化 → 动画等于没播（曾出现该问题）。
+    syncCurrentStyle(series);
+
+    c.setOption({ ...animUpdate, series }, needReplace ? { replaceMerge: ["series"] } : undefined);
+    renderLegend();
+  }
+
+  // 同步「当前样式」快照（普通渲染后调用）
+  function syncCurrentStyle(series) {
+    currentStyle = {};
+    series.forEach(s => {
+      currentStyle[s.id] = {
+        line: s.lineStyle ? (s.lineStyle.opacity == null ? 1 : s.lineStyle.opacity) : 1,
+        width: s.lineStyle ? s.lineStyle.width : 2,
+        item: s.itemStyle ? (s.itemStyle.opacity == null ? 1 : s.itemStyle.opacity) : 1,
+        area: s.areaStyle ? (s.areaStyle.opacity || 0) : 0,
+      };
+    });
+  }
+
+  // 子指标切换的亮暗过渡：在同一条曲线上补间不透明度 / 线宽。
+  // 不做「多画一条曲线」的交叉淡入淡出 —— 会叠加成半透明导致曲线中途变淡甚至消失。
+  function tweenHighlight(c, series) {
+    if (tweenTimer) { clearInterval(tweenTimer); tweenTimer = null; }
+    const from = { ...currentStyle };
+    const to = {};
+    series.forEach(s => {
+      to[s.id] = {
+        line: s.lineStyle.opacity, width: s.lineStyle.width,
+        item: s.itemStyle.opacity,
+        area: s.areaStyle ? (s.areaStyle.opacity || 0) : 0,
+      };
+    });
+    const FRAME = 16, DURATION = 320, startedAt = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    const tick = () => {
+      const t = Math.min(1, (performance.now() - startedAt) / DURATION);
+      const e = ease(t);
+      const frame = series.map(s => {
+        const f = from[s.id] || to[s.id];
+        const g = to[s.id];
+        const st = {
+          line: lerp(f.line, g.line, e), width: lerp(f.width, g.width, e),
+          item: lerp(f.item, g.item, e), area: lerp(f.area, g.area, e),
+        };
+        currentStyle[s.id] = st;
+        return {
+          ...s,
+          lineStyle: { ...s.lineStyle, opacity: st.line, width: st.width },
+          itemStyle: { ...s.itemStyle, opacity: st.item },
+          areaStyle: { ...(s.areaStyle || {}), opacity: st.area },
+        };
+      });
+      c.setOption({ animation: false, series: frame });
+      if (t >= 1) { clearInterval(tweenTimer); tweenTimer = null; }
+    };
+    tick();
+    tweenTimer = setInterval(tick, FRAME);
+  }
+
+  // 图例：子指标模式下 ECharts 自带图例会混入淡出用的临时曲线，这里统一用自定义图例精确显示当前三条。
+  // 图例本身就是切换入口：每一项都可点击，点谁就高亮谁（等价于点上方的子指标 Tab）。
+  function renderLegend() {
+    const el = document.getElementById("main-legend");
+    if (!el) return;
+    const { mode } = currentSeries();
+    if (!mode.subKeys) { el.innerHTML = ""; el.style.display = "none"; return; }
+    el.style.display = "flex";
+    const curKey = activeSubKey || mode.subKeys[0];
+    const colors = [mode.color, "#f59e0b", "#f4511e"];
+    el.innerHTML = mode.subKeys.map((k, i) => {
+      const on = k === curKey;
+      return `<span class="lg-item${on ? " on" : ""}" data-key="${k}" role="button" tabindex="0"` +
+             ` aria-pressed="${on}" title="点击只关注「${mode.subNames[i]}」">` +
+             `<i style="background:${colors[i]};opacity:${on ? 1 : 0.6}"></i>${mode.subNames[i]}</span>`;
+    }).join("");
+
+    // 绑定点击/回车切换高亮。此前这里只重建了 innerHTML 而没有绑事件，
+    // 图例纯属装饰、点了没反应（用户只能靠上方的子指标 Tab 切换）。
+    el.querySelectorAll(".lg-item").forEach(node => {
+      const go = () => selectSubKey(node.dataset.key);
+      node.addEventListener("click", go);
+      node.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); }
+      });
+    });
+  }
+
+  // ---------- 数学分析 ----------
+  function calcRate(arr, key) {
+    const r = [];
+    for (let i = 1; i < arr.length; i++) {
+      const prev = arr[i - 1][key] || 0;
+      const cur = arr[i][key] || 0;
+      r.push(prev ? (cur - prev) / prev : 0);
+    }
+    return r;
+  }
+  function calcMulti(arr, key) {
+    const base = arr[0][key] || 1;
+    return arr.map(x => (x[key] || 0) / base);
+  }
+  function linReg(xs, ys) {
+    const n = xs.length;
+    const sx = xs.reduce((s, v) => s + v, 0), sy = ys.reduce((s, v) => s + v, 0);
+    const sxy = xs.reduce((s, v, i) => s + v * ys[i], 0);
+    const sxx = xs.reduce((s, v) => s + v * v, 0);
+    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    const a = (sy - b * sx) / n;
+    // R²（注意累加器变量名不能与截距 a 冲突）
+    const mean = sy / n;
+    const ssTot = ys.reduce((acc, y) => acc + (y - mean) ** 2, 0);
+    const ssRes = ys.reduce((acc, y, i) => acc + (y - (a + b * xs[i])) ** 2, 0);
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    return { a, b, r2, predict: x => a + b * x };
+  }
+  function expFit(xs, ys) {
+    const ly = ys.map(y => Math.log(Math.max(y, 1)));
+    const lr = linReg(xs, ly);
+    return { a: Math.exp(lr.a), b: lr.b, r2: lr.r2, predict: x => Math.exp(lr.a) * Math.exp(lr.b * x) };
+  }
+
+  function renderAnalyses() {
+    const { mode, arr, key } = currentSeries();
+    if (arr.length < 2) return;
+    const labels = xLabels(arr);
+    const vals = hpValues(arr, key);
+    const xs = arr.map((_, i) => i);
+
+    // 环比膨胀率
+    const rates = calcRate(arr, key);
+    const rateChart = ensureChart("chart-rate");
+    rateChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
+      xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
+      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
+      series: [{
+        type: "bar", data: rates, itemStyle: {
+          color: p => p.value >= 0 ? "#f4511e" : "#16a34a",
+          borderRadius: [3, 3, 0, 0],
+        },
+        barMaxWidth: 22,
+      }],
+      animationDuration: 350,
+    }, true);
+
+    // 相对基准倍数
+    const multi = calcMulti(arr, key);
+    const multiChart = ensureChart("chart-multi");
+    multiChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      grid: { left: 10, right: 14, top: 16, bottom: 8, containLabel: true },
+      xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
+      yAxis: { type: "value", axisLabel: axisStyle, splitLine },
+      series: [{
+        type: "line", data: multi, smooth, lineStyle: { color: mode.color, width: 2.5 },
+        itemStyle: { color: mode.color }, areaStyle: { opacity: 0.12, color: mode.color },
+      }],
+      animationDuration: 350,
+    }, true);
+
+    // 拟合
+    const lin = linReg(xs, vals);
+    const exp = expFit(xs, vals);
+    const linPred = xs.map(x => lin.predict(x));
+    const expPred = xs.map(x => exp.predict(x));
+    const fitChart = ensureChart("chart-fit");
+    const fitLabel = exp.r2 >= lin.r2 ? "指数拟合" : "线性拟合";
+    const fitBadge = exp.r2 >= lin.r2 ? "fit-exp" : "fit-lin";
+    fitChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmt(v) },
+      legend: { top: 0, textStyle: { color: MUTED, fontSize: 11 } },
+      grid: { left: 10, right: 14, top: 34, bottom: 8, containLabel: true },
+      xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
+      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmt(v) }, splitLine },
+      series: [
+        { name: "实际", type: "line", data: vals, symbol: "circle", symbolSize: 5, lineStyle: { color: mode.color, width: 2 }, itemStyle: { color: mode.color } },
+        { name: "指数拟合", type: "line", data: expPred, lineStyle: { type: "dashed", color: "#f4511e", width: 1.5 }, itemStyle: { color: "#f4511e" }, symbol: "none" },
+        { name: "线性拟合", type: "line", data: linPred, lineStyle: { type: "dashed", color: "#16a34a", width: 1.5 }, itemStyle: { color: "#16a34a" }, symbol: "none" },
+      ],
+      animationDuration: 350,
+    }, true);
+    // 拟合结论徽标
+    const fitDesc = document.querySelector("#chart-fit").parentElement.querySelector(".desc");
+    if (fitDesc) {
+      let badge = fitDesc.querySelector(".fit-badge");
+      if (!badge) { badge = document.createElement("span"); badge.className = "fit-badge"; fitDesc.appendChild(badge); }
+      badge.className = "fit-badge " + fitBadge;
+      badge.textContent = fitLabel + " · R²=" + (exp.r2 >= lin.r2 ? exp.r2.toFixed(3) : lin.r2.toFixed(3));
+    }
+
+    // 膨胀加速度（环比膨胀率的变化 + 拐点）
+    const accel = rates.map((r, i) => i > 0 ? r - rates[i - 1] : 0);
+    const accelChart = ensureChart("chart-accel");
+    accelChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
+      xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
+      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
+      series: [{
+        type: "line", data: accel, smooth, lineStyle: { color: "#a78bfa", width: 2 },
+        itemStyle: { color: "#a78bfa" }, areaStyle: { opacity: 0.1 },
+      }],
+      animationDuration: 350,
+    }, true);
+  }
+
+  function ensureChart(id) {
+    const el = document.getElementById(id);
+    if (!charts[id]) charts[id] = echarts.init(el, null, { renderer: "canvas" });
+    return charts[id];
+  }
+
+  // ---------- 统计摘要 ----------
+  // ---------- 膨胀拐点 · 失控起点 ----------
+  function prevRate(rates, i) {
+    // rates[k] = 第 k+1 期相对第 k 期的涨幅；取「进入第 i 期」的涨幅
+    return i > 0 && i - 1 < rates.length ? rates[i - 1] : 0;
+  }
+
+  function renderTurningPoints() {
+    const box = document.getElementById("turning-points");
+    const { mode, arr, key } = currentSeries();
+    const vals = hpValues(arr, key);
+    const rates = calcRate(arr, key);
+
+    // 跳升（≥40%）与暴涨（≥60%）
+    const jumps = [];
+    for (let i = 0; i < rates.length; i++) {
+      if (rates[i] >= 0.4) jumps.push({ i, v: arr[i + 1], rate: rates[i], level: rates[i] >= 0.6 ? "暴涨" : "跳升" });
+    }
+    // 只保留有代表性的：按幅度排序取前 5
+    jumps.sort((a, b) => b.rate - a.rate);
+    const topJumps = jumps.slice(0, 5).sort((a, b) => a.i - b.i);
+
+    // 失控起点：要求是「局部高点」——比前一期明显上涨（≥15%），
+    // 且此后所有期都不低于该期（再未回落）。这样可排除 1.1 那种下探低点。
+    let runaway = null;
+    for (let i = 1; i < vals.length; i++) {
+      const rose = prevRate(rates, i) >= 0.15;
+      if (rose && vals.slice(i).every((x) => x >= vals[i] * 0.98)) { runaway = i; break; }
+    }
+
+    const colorOf = (lvl) => (lvl === "暴涨" ? "#F4511E" : "#F59E0B");
+    const cards = [];
+    if (runaway !== null) {
+      const p = arr[runaway], mult = vals[runaway] / vals[0];
+      cards.push(`<div class="tp-card tp-runaway">
+        <div class="tp-tag">失控起点</div>
+        <div class="tp-ver">${p.version}</div>
+        <div class="tp-name">${p.name || "—"}</div>
+        <div class="tp-num">${fmt(vals[runaway])}</div>
+        <div class="tp-sub">此后未再回落 · 相对首期 ${mult.toFixed(2)}×</div>
+      </div>`);
+    }
+    topJumps.forEach((j) => {
+      const c = colorOf(j.level);
+      cards.push(`<div class="tp-card" style="border-left-color:${c}">
+        <div class="tp-tag" style="color:${c}">${j.level} +${(j.rate * 100).toFixed(1)}%</div>
+        <div class="tp-ver">${j.v.version}</div>
+        <div class="tp-name">${j.v.name || "—"}</div>
+        <div class="tp-num">${fmt(hpValues([j.v], key)[0])}</div>
+        <div class="tp-sub">相对首期 ${(hpValues([j.v], key)[0] / vals[0]).toFixed(2)}×</div>
+      </div>`);
+    });
+    box.innerHTML = `<div class="tp-grid">${cards.join("")}</div>`;
+  }
+
+  // ---------- 统计摘要 ----------
+  function renderStats() {
+    const box = document.getElementById("stats-summary");
+    const { mode, arr, key } = currentSeries();
+    const vals = hpValues(arr, key);
+    const rates = calcRate(arr, key);
+    const maxRate = Math.max(...rates), minRate = Math.min(...rates);
+    const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const multi = calcMulti(arr, key);
+    const lin = linReg(arr.map((_, i) => i), vals);
+    const exp = expFit(arr.map((_, i) => i), vals);
+
+    // 拐点（加速度符号显著变化：幅度超过环比率标准差的一半，最多取 5 个）
+    const accel = rates.map((r, i) => i > 0 ? r - rates[i - 1] : 0);
+    const accelSig = accel.slice(1);
+    const meanAcc = accelSig.reduce((s, v) => s + v, 0) / (accelSig.length || 1);
+    const stdAcc = Math.sqrt(accelSig.reduce((s, v) => s + (v - meanAcc) ** 2, 0) / (accelSig.length || 1));
+    const threshold = Math.max(stdAcc * 0.75, 0.03);
+    const inflections = [];
+    for (let i = 1; i < accel.length; i++) {
+      const cross = (accel[i] > 0 && accel[i - 1] <= 0) || (accel[i] < 0 && accel[i - 1] >= 0);
+      if (cross && Math.abs(accel[i]) >= threshold) {
+        inflections.push(arr[i].version);
+      }
+    }
+    const inflectionText = inflections.length ? inflections.slice(0, 5).join("、") + (inflections.length > 5 ? " 等" : "") : "无显著拐点";
+
+    const rows = [
+      ["数据点数", arr.length + " 个版本"],
+      ["当前血量", fmt(vals[vals.length - 1])],
+      ["总膨胀倍数", multi[multi.length - 1].toFixed(2) + "×"],
+      ["平均环比膨胀率", fmtPct(avgRate)],
+      ["最大环比膨胀率", fmtPct(maxRate)],
+      ["最小环比膨胀率", fmtPct(minRate)],
+      ["指数拟合 R²", exp.r2.toFixed(4)],
+      ["线性拟合 R²", lin.r2.toFixed(4)],
+      ["拟合结论", exp.r2 >= lin.r2 ? "指数型膨胀（指数拟合更优）" : "近线性膨胀"],
+      ["拐点版本", inflectionText],
+    ];
+    box.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 24px;">
+      ${rows.map(r => `<div class="stat-line"><span class="label">${r[0]}</span><span class="value">${r[1]}</span></div>`).join("")}
+    </div>`;
+  }
+
+  // ---------- 全玩法归一化对比 ----------
+  function renderCompare() {
+    const el = document.getElementById("chart-compare");
+    if (!charts.compare) charts.compare = echarts.init(el);
+    const series = MODES.map(m => {
+      const arr = (DATA[m.key] || {}).data || [];
+      return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth: true, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
+    });
+    charts.compare.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      legend: { top: 0, textStyle: { color: MUTED } },
+      grid: { left: 56, right: 24, top: 46, bottom: 8, containLabel: true },
+      xAxis: { type: "category", axisLabel: { show: false }, axisLine: { lineStyle: { color: BORDER } } },
+      yAxis: { type: "value", name: "相对倍数", nameTextStyle: { color: DIM }, axisLabel: { ...axisStyle, margin: 10 }, splitLine },
+      series,
+      animationDuration: 500,
+    }, true);
+  }
+
+  // ---------- 导出 ----------
+  function exportChart(chart, filename) {
+    const url = chart.getDataURL({ type: "png", pixelRatio: 3, backgroundColor: BG });
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+  }
+
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const { mode } = currentSeries();
+    exportChart(charts.main, `血量膨胀_${mode.name}_${DATA.meta.dataVersion}.png`);
+  });
+  document.getElementById("btn-log").addEventListener("click", (e) => {
+    logY = !logY; e.target.classList.toggle("active", logY); renderMainChart();
+  });
+  document.getElementById("btn-smooth").addEventListener("click", (e) => {
+    smooth = !smooth; e.target.classList.toggle("active", smooth); renderMainChart(); renderAnalyses();
+  });
+  document.getElementById("btn-smooth").classList.add("active");
+
+  // 窗口 resize
+  window.addEventListener("resize", () => {
+    Object.values(charts).forEach(c => c.resize());
+  });
+
+  // ---------- 初始化 ----------
+  renderKPI();
+  renderTabs();
+  renderMainChart();
+  renderAnalyses();
+  renderStats();
+  renderTurningPoints();
+  renderCompare();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 抓取过程的中间产物（校验通过后会被自动删除，无需入库）
+data/*.tmp
+
+# 临时探测输出
+/tmp_probe*.json
+
+# 编辑器与系统
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# 本地预览脚本（各人自建，不必共享）
+/preview*.sh
