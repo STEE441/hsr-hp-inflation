@@ -1,10 +1,10 @@
-name: 每周抓取血量数据
+name: 每日12点抓取血量数据
 
 on:
   schedule:
     # 每周一 UTC 02:00 = 北京时间 10:00
     # 注意：GitHub 的定时任务在高峰期可能延迟几分钟到几十分钟执行，属正常现象。
-    - cron: "0 4 * * 3"
+    - cron: "0 4 * * *"
   workflow_dispatch: # 支持在 Actions 页面手动触发
 
 permissions:
