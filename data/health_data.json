@@ -1,7 +1,7 @@
 {
   "meta": {
-    "dataVersion": "4.6.51",
-    "generatedAt": "2026-10-15T04:26:05+0000",
+    "dataVersion": "4.6.53",
+    "generatedAt": "2026-10-16T04:26:21+0000",
     "source": "https://hsr.nanoka.cc",
     "liveVersion": "4.6"
   },
@@ -597,12 +597,12 @@
         "version": "4.7",
         "seasonId": "3022",
         "name": "领航冥茫",
-        "hp": 100309640,
+        "hp": 104269231,
         "lanes": 3,
         "lanesHp": [
-          16718272,
+          18478090,
           59393867,
-          24197501
+          26397274
         ]
       }
     ]
