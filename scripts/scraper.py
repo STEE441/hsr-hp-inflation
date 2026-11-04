@@ -796,6 +796,7 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
             # 第一波：小怪均匀刷新，直接求和（集合体已剔除）
             wave_total = sum(p["hp"] for _, p in entries)
             total += wave_total
+            rule = "sum_first"
             agg = {}
             for mid, p in entries:
                 a = agg.setdefault(mid, {"hp": p["hp"], "parts": p, "count": 0})
@@ -827,6 +828,7 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
                 minion_total = 10.0 * sum(hp for m, hp in mid_hp.items() if m != boss_mid)
                 wave_total = 0.4 * boss_hp + minion_total
                 total += wave_total
+                rule = "boss40"
                 rows = []
                 for mid, hp in mid_hp.items():
                     inv = inv_level if mid in polluted else 0
@@ -840,6 +842,7 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
                 # 无真 BOSS（早期赛季）：直接 Σ(单只血量 × 数量)
                 wave_total = sum(hp * mid_count[m] for m, hp in mid_hp.items())
                 total += wave_total
+                rule = "sum_all"
                 rows = [
                     monster_entry(mid, hp, inv_level if mid in polluted else 0, tables,
                                   count=mid_count[mid], parts=mid_parts[mid])
@@ -847,7 +850,8 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
                 ]
 
         if detail is not None:
-            detail.append({"label": f"波次 {i + 1}", "hp": round(wave_total), "monsters": rows})
+            detail.append({"label": f"波次 {i + 1}", "hp": round(wave_total),
+                           "rule": rule, "monsters": rows})
 
     return total
 
