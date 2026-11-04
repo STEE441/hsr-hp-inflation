@@ -225,16 +225,22 @@ def build_lookup_tables(ver):
     }
 
 
-def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
-    """计算单个怪物的「通关所需总血量」= 本体各阶段之和 + 贪饕血条等效伤害
+def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
+    """计算单个怪物的血量构成。
 
-    - infinite_bonus: 无限刷怪波次 param_list[1] 血量加成
-    - invasion_level: 贪饕侵蚀等级（1~4），0 表示未被侵蚀
+    返回 dict：
+      hp       通关等效总伤害 = body + invHp（与旧版 calc_monster_hp 返回值逐位一致）
+      body     本体各阶段之和
+      phaseHp  各阶段血量（单只口径），长度 = 阶段数
+      invHp    贪饕血条额外需要造成的等效伤害
+
+    注意：body 仍用「单阶段基准 × Σratios」这一原算式，而不是 Σ(unit × r)，
+    以免浮点结合律差异导致 round 后偶发差 1。
     """
     key = str(mid)[:7]  # 怪物 ID 取前 7 位作为 monstervalue 键
     mv = tables["monstervalue"].get(key)
     if not mv:
-        return 0.0
+        return {"hp": 0.0, "body": 0.0, "phaseHp": [0.0], "invHp": 0.0}
 
     hp_base = float(mv.get("HPBase", 0) or 0)
 
@@ -266,22 +272,30 @@ def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, in
     # 等级倍率
     hard_ratio = float(tables["hard_map"].get((hard_g, level), 1) or 1)
 
-    hp = hp_base * hp_modify * elite_ratio * hard_ratio
+    unit = hp_base * hp_modify * elite_ratio * hard_ratio
 
     # 无限刷怪波次的血量加成：×(1 + param_list[1])（虚构叙事等玩法）
-    hp *= 1.0 + float(infinite_bonus or 0)
+    unit *= 1.0 + float(infinite_bonus or 0)
 
     # Boss 多阶段：各阶段血条比例之和（PHASE_OVERRIDE 可覆盖上游配错的情况）
     ratios, phase1_scale = resolve_phases(key, mv)
     ratios = [r * phase1_scale for r in ratios]
-    hp_last_phase = hp * ratios[-1]          # 最后一阶段血量（多阶段贪饕血条的基准）
-    hp *= sum(ratios)                        # 本体总血量 = 各阶段之和
+
+    body = unit * sum(ratios)                 # 本体总血量（原算式，保持不变）
+    hp_last_phase = unit * ratios[-1]         # 最后一阶段血量（多阶段贪饕血条的基准）
+    phase_hp = [unit * r for r in ratios]     # 各阶段血量（仅用于展示拆分）
 
     # 贪饕侵蚀：本体打死后多一条贪饕血条，按等级追加「等效消耗伤害」
-    if invasion_level:
-        hp += invasion_extra_damage(hp, hp_last_phase, len(ratios), invasion_level)
+    inv_hp = invasion_extra_damage(body, hp_last_phase, len(ratios), invasion_level) if invasion_level else 0.0
 
-    return hp
+    return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp}
+
+
+def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
+    """兼容旧调用：只取通关等效总伤害"""
+    return calc_monster_hp_parts(
+        mid, elite_gid, hard_g, level, tables, is_infinite, infinite_bonus, invasion_level
+    )["hp"]
 
 
 def invasion_extra_damage(hp_body, hp_last_phase, phase_count, level):
@@ -321,13 +335,15 @@ def monster_name(mid, tables):
     return m.get("zh") or m.get("en") or ""
 
 
-def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1):
+def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, parts=None):
     """构造一只怪物的明细条目（供前端核对「总血量是怎么组成的」）
 
-    - hp     单只怪物血量（含贪饕血条折算的等效值）
-    - contrib 这一行实际计入本波总量的血量。多数情况等于 hp × count，
-              但虚构叙事第二/三波只把 BOSS 的 40% 计入，小怪按 10 只计入。
-    - count  本波内该怪出现的只数（同一 ID 多次出现合并成一行）
+    - hp       单只怪物血量（含贪饕血条折算的等效值）
+    - contrib  这一行实际计入本波总量的血量。多数情况等于 hp × count，
+               但虚构叙事第二/三波只把 BOSS 的 40% 计入，小怪按 10 只计入。
+    - count    本波内该怪出现的只数（同一 ID 多次出现合并成一行）
+    - parts    calc_monster_hp_parts 的返回值；有它才能输出阶段/贪饕拆分。
+               单阶段不写 phaseHp、无贪饕不写 invHp，避免给 90% 的行白增体积。
     """
     key = str(mid)[:7]
     mv = tables["monstervalue"].get(key) or {}
@@ -336,7 +352,8 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1):
         phases = len(ratios)
     except Exception:
         phases = 1
-    return {
+
+    entry = {
         "id": str(mid),
         "name": monster_name(mid, tables) or "",
         "hp": round(hp),
@@ -345,6 +362,17 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1):
         "phases": phases,
         "inv": int(invasion_level or 0),
     }
+
+    if parts:
+        ph = parts.get("phaseHp") or []
+        if len(ph) > 1:
+            entry["phases"] = len(ph)
+            entry["phaseHp"] = [round(v) for v in ph]
+        inv_hp = parts.get("invHp") or 0.0
+        if inv_hp > 0:
+            entry["invHp"] = round(inv_hp)
+
+    return entry
 
 
 def sum_contrib(waves):
@@ -698,14 +726,14 @@ def event_total_hp(event, tables, is_infinite=False, detail=None):
     waves = event.get("monster_list") or []
     for wi, wave in enumerate(waves, 1):
         wave_total = 0.0
-        agg = {}  # mid -> {"hp": 单只血量, "count": 只数, "inv": 该怪的侵蚀等级}
+        agg = {}  # mid -> {"hp": 单只血量, "count": 只数, "inv": 侵蚀等级, "parts": 构成}
         for k, mid in wave.items():
             if not k.startswith("monster"):
                 continue
             lvl = inv_level if mid in polluted else 0
-            mhp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_level=lvl)
-            wave_total += mhp
-            a = agg.setdefault(mid, {"hp": mhp, "count": 0, "inv": lvl})
+            p = calc_monster_hp_parts(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_level=lvl)
+            wave_total += p["hp"]
+            a = agg.setdefault(mid, {"hp": p["hp"], "count": 0, "inv": lvl, "parts": p})
             a["count"] += 1
         total += wave_total
         if detail is not None and agg:
@@ -713,7 +741,7 @@ def event_total_hp(event, tables, is_infinite=False, detail=None):
                 "label": f"波次 {wi}",
                 "hp": round(wave_total),
                 "monsters": [
-                    monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"])
+                    monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"], parts=a["parts"])
                     for mid, a in agg.items()
                 ],
             })
@@ -753,27 +781,28 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
         bonus = wave_hp_bonus(wave)
 
         # 计算每个怪物的血量，剔除虚构集合体
-        entries = []  # (mid, hp)
+        entries = []  # (mid, parts)
         for mid in ids:
             if monster_name(mid, tables) == "虚构集合体":
                 continue
             r = inv_level if mid in polluted else 0
-            hp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
-            entries.append((mid, hp))
+            p = calc_monster_hp_parts(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
+            entries.append((mid, p))
 
         if not entries:
             continue
 
         if i == 0:
             # 第一波：小怪均匀刷新，直接求和（集合体已剔除）
-            wave_total = sum(hp for _, hp in entries)
+            wave_total = sum(p["hp"] for _, p in entries)
             total += wave_total
             agg = {}
-            for mid, hp in entries:
-                a = agg.setdefault(mid, {"hp": hp, "count": 0})
+            for mid, p in entries:
+                a = agg.setdefault(mid, {"hp": p["hp"], "parts": p, "count": 0})
                 a["count"] += 1
             rows = [
-                monster_entry(mid, a["hp"], inv_level if mid in polluted else 0, tables, count=a["count"])
+                monster_entry(mid, a["hp"], inv_level if mid in polluted else 0, tables,
+                              count=a["count"], parts=a["parts"])
                 for mid, a in agg.items()
             ]
         else:
@@ -781,8 +810,10 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
             # 统计每种怪物的单只血量与数量
             mid_hp = {}
             mid_count = {}
-            for mid, hp in entries:
-                mid_hp[mid] = hp
+            mid_parts = {}
+            for mid, p in entries:
+                mid_hp[mid] = p["hp"]
+                mid_parts[mid] = p
                 mid_count[mid] = mid_count.get(mid, 0) + 1
 
             boss_mid = max(mid_hp, key=lambda m: mid_hp[m])
@@ -800,15 +831,18 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
                 for mid, hp in mid_hp.items():
                     inv = inv_level if mid in polluted else 0
                     if mid == boss_mid:
-                        rows.append(monster_entry(mid, hp, inv, tables, contribution=0.4 * hp, count=1))
+                        rows.append(monster_entry(mid, hp, inv, tables,
+                                                  contribution=0.4 * hp, count=1, parts=mid_parts[mid]))
                     else:
-                        rows.append(monster_entry(mid, hp, inv, tables, contribution=10.0 * hp, count=10))
+                        rows.append(monster_entry(mid, hp, inv, tables,
+                                                  contribution=10.0 * hp, count=10, parts=mid_parts[mid]))
             else:
                 # 无真 BOSS（早期赛季）：直接 Σ(单只血量 × 数量)
                 wave_total = sum(hp * mid_count[m] for m, hp in mid_hp.items())
                 total += wave_total
                 rows = [
-                    monster_entry(mid, hp, inv_level if mid in polluted else 0, tables, count=mid_count[mid])
+                    monster_entry(mid, hp, inv_level if mid in polluted else 0, tables,
+                                  count=mid_count[mid], parts=mid_parts[mid])
                     for mid, hp in mid_hp.items()
                 ]
 
@@ -920,9 +954,9 @@ def peak_event_hp(event, inf_list, tables, detail=None):
             agg = {}
             for mid in wave.get("monster_group_id_list", []):
                 r = inv_level if mid in polluted else 0
-                mhp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
-                wave_total += mhp
-                a = agg.setdefault(mid, {"hp": mhp, "count": 0, "inv": r})
+                p = calc_monster_hp_parts(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
+                wave_total += p["hp"]
+                a = agg.setdefault(mid, {"hp": p["hp"], "count": 0, "inv": r, "parts": p})
                 a["count"] += 1
             total += wave_total
             if detail is not None and agg:
@@ -931,7 +965,7 @@ def peak_event_hp(event, inf_list, tables, detail=None):
                     "label": f"波次 {label}",
                     "hp": round(wave_total),
                     "monsters": [
-                        monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"])
+                        monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"], parts=a["parts"])
                         for mid, a in agg.items()
                     ],
                 })
@@ -1028,8 +1062,15 @@ def apply_monster_overrides(details_by_mode, result):
                         old = float(m.get("hp") or 0)
                         new = float(patch["hp"])
                         if old > 0 and new > 0:
+                            # 用同一个系数同步缩放明细里的所有派生值，
+                            # 否则会出现「阶段和 ≠ 本体」或「贪饕占比跳变」
+                            k = new / old
                             # contrib 按同比例缩放，保持「40% BOSS / ×10 小怪」等口径不变
-                            m["contrib"] = round(float(m.get("contrib") or 0) * (new / old))
+                            m["contrib"] = round(float(m.get("contrib") or 0) * k)
+                            if m.get("phaseHp"):
+                                m["phaseHp"] = [round(float(v) * k) for v in m["phaseHp"]]
+                            if m.get("invHp") is not None:
+                                m["invHp"] = round(float(m["invHp"]) * k)
                         m["hp"] = round(new)
                         if patch.get("_note"):
                             m["note"] = patch["_note"]
@@ -1143,6 +1184,30 @@ def verify_details(result, details_by_mode):
                             f"[明细不一致] {mode_key} 赛季 {sid} · {unit.get('label')} · {w.get('label')}："
                             f"怪物贡献合计 {s:,} ≠ 波次血量 {w.get('hp', 0):,}"
                         )
+
+                    # 阶段/贪饕拆分必须自洽：ΣphaseHp + invHp == 单只总量
+                    # 容差随阶段数放宽——逐项 round 的累计误差上限就是 len(phaseHp)
+                    for m in ms:
+                        ph = m.get("phaseHp")
+                        inv_hp = float(m.get("invHp") or 0)
+                        total_m = float(m.get("hp") or 0)
+                        who = m.get("name") or m.get("id")
+                        if ph:
+                            if not close(sum(ph) + inv_hp, total_m, max(2.0, len(ph) + 2.0)):
+                                raise RuntimeError(
+                                    f"[明细不一致] {mode_key} 赛季 {sid} · {who}："
+                                    f"阶段和 {sum(ph):,} + 贪饕 {inv_hp:,.0f} ≠ 单只总量 {total_m:,.0f}"
+                                )
+                            if int(m.get("phases") or 1) != len(ph):
+                                raise RuntimeError(
+                                    f"[明细不一致] {mode_key} 赛季 {sid} · {who}："
+                                    f"phases={m.get('phases')} 与 phaseHp 长度 {len(ph)} 不符"
+                                )
+                        if inv_hp > total_m + 2:
+                            raise RuntimeError(
+                                f"[明细不一致] {mode_key} 赛季 {sid} · {who}："
+                                f"贪饕额外 {inv_hp:,.0f} 超过单只总量 {total_m:,.0f}"
+                            )
 
             # 2) 组/路 → 主数据
             patched = bool(item.get("overrideNote"))
