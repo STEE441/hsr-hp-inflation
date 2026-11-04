@@ -168,57 +168,52 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .modal-close:hover { color: var(--text); border-color: var(--border-strong); }
 .modal-body { padding: 16px 18px 24px; overflow: auto; }
 .dl-group { margin-bottom: 22px; }
-/* 组标题：本期这一组（三骑士 / 王棋 / 绝境王棋）的总血量，做成整条色带，一眼可读 */
-.dl-group-head {
+
+/* 一级色带：一条路 / 一个关卡（第 1 路、骑士 1、王棋…）
+   所有玩法共用同一样式，保证「骑士 1」和「第 1 路」看起来是同一层级。
+   填充用中性灰而非主题色——主题色只留给左侧竖条，否则整页蓝成一片、数字看不清。 */
+.dl-group-head, .dl-stage-head {
   display: flex; align-items: baseline; gap: 10px;
-  font-size: 18px; font-weight: 800; margin-bottom: 12px;
-  padding: 10px 14px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02));
-  border-left: 4px solid var(--accent); border-radius: 8px;
+  font-size: 18px; font-weight: 800; color: var(--text);
+  margin-bottom: 12px; padding: 10px 14px;
+  background: rgba(148, 163, 184, 0.10);
+  border-left: 4px solid var(--dl-accent, #38bdf8);
+  border-radius: 8px;
 }
-.dl-group-head .pct {
+.dl-group-head .pct, .dl-stage-head .pct {
   margin-left: auto; font-size: 17px; font-weight: 800;
-  color: var(--accent); font-variant-numeric: tabular-nums;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.dl-group-head .pct small, .dl-stage-head .pct small {
+  font-size: 12px; font-weight: 600; color: var(--text-dim); margin-left: 7px;
+}
+.dl-group-head .pct small::before, .dl-stage-head .pct small::before {
+  content: "·"; margin-right: 6px; opacity: 0.65;
 }
 
-/* 关卡块：三骑士里的「骑士 1 / 骑士 2 / 骑士 3」各自成块，用边框与留白明确隔开 */
-.dl-unit {
-  margin: 14px 0;
-  padding: 12px 14px 6px;
-  background: rgba(148, 163, 184, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+/* 集合说明行：三骑士这种「包含多个关卡」的组，只做一行弱说明，不占一级色带 */
+.dl-group-note {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0 0 12px; padding: 0 2px;
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
 }
-.dl-unit + .dl-unit { margin-top: 16px; }
-.dl-unit-head {
-  display: flex; align-items: baseline; gap: 10px;
-  margin-bottom: 6px; padding-bottom: 8px;
-  border-bottom: 1px dashed var(--border);
-  font-size: 16px; font-weight: 800; color: var(--text);
+.dl-group-note .pct {
+  margin-left: auto; font-size: 13px; font-weight: 600;
+  color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
-.dl-unit-head::before {
-  content: ""; width: 4px; height: 15px; border-radius: 2px;
-  background: var(--accent); flex: none; transform: translateY(2px);
-}
-.dl-unit-head .u-hp {
-  margin-left: auto; font-size: 15px; font-weight: 800;
-  color: var(--accent); font-variant-numeric: tabular-nums;
-}
-/* 块内波次条减弱一档，避免与外层卡片的底色叠成两层重影 */
-.dl-unit .dl-wave-head { background: linear-gradient(90deg, rgba(56, 189, 248, 0.08), transparent); }
-.dl-unit .dl-wave:last-child { margin-bottom: 6px; }
 
-/* 波次头：做成一条醒目的汇总条，总量字号明显大于表体 */
+/* 二级：波次汇总条。比一级色带弱一档——更淡的底、中性细线、字号小一级，
+   这样「关卡 → 波次」的从属关系靠层次就能看出来，不需要两套主题色。 */
 .dl-wave { margin: 14px 0 16px; }
 .dl-wave-head {
   display: flex; align-items: baseline; gap: 10px;
-  padding: 9px 12px; margin-bottom: 2px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.10), transparent);
-  border-left: 3px solid var(--accent); border-radius: 6px 6px 0 0;
+  padding: 8px 12px; margin-bottom: 2px;
+  background: rgba(148, 163, 184, 0.045);
+  border-left: 2px solid rgba(148, 163, 184, 0.38); border-radius: 6px 6px 0 0;
   font-variant-numeric: tabular-nums;
 }
 .dl-wave-head .lbl { font-size: 13px; font-weight: 700; color: var(--text-muted); }
-.dl-wave-head .total { font-size: 19px; font-weight: 800; color: var(--text); }
+.dl-wave-head .total { font-size: 17px; font-weight: 800; color: var(--text); }
 .dl-wave-head .pct { margin-left: auto; font-size: 13px; color: var(--text-dim); }
 
 /* 表格：固定列宽，保证每个波次的列都对齐 */
@@ -262,7 +257,12 @@ table.dl-table {
   margin-left: 6px; vertical-align: 1px;
   background: rgba(244, 81, 30, 0.14); color: var(--warn); border: 1px solid rgba(244, 81, 30, 0.3);
 }
-.dl-tag.ph { background: rgba(56, 189, 248, 0.12); color: var(--accent); border-color: rgba(56, 189, 248, 0.3); }
+/* 阶段标签跟随当前玩法主题色，底色保持中性，避免整块页面被同一种蓝占满 */
+.dl-tag.ph {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--dl-accent, #38bdf8);
+  border-color: rgba(148, 163, 184, 0.32);
+}
 .dl-loading, .dl-error { padding: 30px 8px; text-align: center; color: var(--text-muted); font-size: 13px; }
 .dl-error { color: var(--warn); }
 
@@ -278,11 +278,12 @@ table.dl-table {
   .dl-table th:nth-child(5), .dl-table td:nth-child(5) { display: none; }
   .dl-wave-head { padding: 6px 8px; }
   .dl-wave-head .total { font-size: 15px; }
-  .dl-group-head { font-size: 15px; padding: 8px 10px; }
-  .dl-group-head .pct { font-size: 14px; }
-  .dl-unit { padding: 10px 8px 4px; }
-  .dl-unit-head { font-size: 14px; }
-  .dl-unit-head .u-hp { font-size: 13px; }
+  .dl-group-head, .dl-stage-head { font-size: 15px; padding: 8px 10px; }
+  .dl-group-head .pct, .dl-stage-head .pct { font-size: 14px; }
+  .dl-group-head .pct small, .dl-stage-head .pct small { font-size: 11px; margin-left: 4px; }
+  .dl-group-head .pct small::before, .dl-stage-head .pct small::before { margin-right: 4px; }
+  .dl-group-note { font-size: 12px; }
+  .dl-group-note .pct { font-size: 12px; }
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
@@ -1461,24 +1462,32 @@ footer a { color: var(--text-muted); }
       ? `${mode.name} · ${groups[0].label} ${fmt(groups[0].hp)} · 占本期 ${pctOf(groups[0].hp, total)}`
       : `${mode.name} · 合计 ${fmt(total)} · ${groups.length} 组 · 数据包 ${DATA.meta.dataVersion}`;
 
+    // 明细的主题色跟随当前玩法：混沌蓝 / 虚构紫 / 末日橙 / 异相绿。
+    // 全程只用一种蓝会让「关卡 / 波次 / 数字」全部糊在一起。
+    document.getElementById("detail-modal").style.setProperty("--dl-accent", mode.color || "#38bdf8");
+
     body.innerHTML = groups.map(g => {
-      const units = g.units || [g];
-      const multi = units.length > 1;   // 三骑士要区分骑士 1/2/3
-      const unitHtml = units.map(u => {
-        const table = waveTable(u, multi ? u.hp : g.hp, multi ? "占本关" : "占本组");
-        if (!multi) return table;
-        // 每个关卡独立成一个块：块头是关卡名 + 该关总血量，块体是这个关的波次表
-        return `<div class="dl-unit">
-            <div class="dl-unit-head">
-              <span class="u-name">${u.label}</span>
-              <span class="u-hp">${fmt(u.hp)} · 占本期 ${pctOf(u.hp, total)}</span>
-            </div>
-            ${table}
-          </div>`;
-      }).join("");
+      const units = g.units || [];
+      const multi = units.length > 1;   // 三骑士：组是集合，里面还有骑士 1/2/3
+
+      // 普通玩法（混沌 / 虚构 / 末日，以及王棋、绝境王棋）：这一组本身就是一条路或一个关卡，
+      // 直接做一级色带——和「骑士 1」用完全相同的样式，保证两处看起来是同一层级。
+      if (!multi) {
+        const u = units[0] || g;
+        return `<div class="dl-group">
+          <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)}<small>占本期 ${pctOf(g.hp, total)}</small></span></div>
+          ${waveTable(u, g.hp, "占本组")}
+        </div>`;
+      }
+
+      // 三骑士：组标题降为一行说明（它只是"包含三个关卡"的容器，不是具体关卡），
+      // 每个骑士升级为一级色带，与「第 1 路」逐像素一致。
       return `<div class="dl-group">
-        <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)} · 占本期 ${pctOf(g.hp, total)}</span></div>
-        ${unitHtml}
+        <div class="dl-group-note">${g.label}（${units.length} 个关卡）<span class="pct">合计 ${fmt(g.hp)} · 占本期 ${pctOf(g.hp, total)}</span></div>
+        ${units.map(u => `<div class="dl-stage">
+            <div class="dl-stage-head">${u.label}<span class="pct">${fmt(u.hp)}<small>占本期 ${pctOf(u.hp, total)}</small></span></div>
+            ${waveTable(u, u.hp, "占本关")}
+          </div>`).join("")}
       </div>`;
     }).join("");
   }
