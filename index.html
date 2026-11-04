@@ -159,7 +159,24 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
   padding: 16px 18px; border-bottom: 1px solid var(--border);
 }
 .modal-title { font-size: 19px; font-weight: 800; }
-.modal-sub { font-size: 13px; color: var(--text-muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
+/* 明细副标题：这一页的总血量是读者最先要找的东西，单独放大并用主题色 */
+.modal-sub {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+  margin-top: 6px; font-size: 13px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.modal-sub .ms-mode { font-weight: 700; }
+.modal-sub .ms-label { font-size: 14px; font-weight: 800; color: var(--text); }
+.modal-sub .ms-hp {
+  font-size: 24px; font-weight: 800; line-height: 1.1;
+  color: var(--dl-accent, #38bdf8); letter-spacing: -0.01em;
+}
+.modal-sub .ms-pct {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--dl-accent-soft, rgba(56, 189, 248, 0.18));
+ }
+.modal-sub .ms-sep { opacity: 0.4; }
 .modal-close {
   margin-left: auto; flex: none; background: transparent; border: 1px solid var(--border);
   color: var(--text-muted); width: 30px; height: 30px; border-radius: 8px;
@@ -170,25 +187,28 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .dl-group { margin-bottom: 22px; }
 
 /* 一级色带：一条路 / 一个关卡（第 1 路、骑士 1、王棋…）
-   所有玩法共用同一样式，保证「骑士 1」和「第 1 路」看起来是同一层级。
-   填充用中性灰而非主题色——主题色只留给左侧竖条，否则整页蓝成一片、数字看不清。 */
+   所有玩法共用同一样式，保证「骑士 1」和「第 1 路」是同一层级。
+   填充用本玩的主题色（蓝/紫/橙/绿），不同玩法自己一套色，所以不会"满屏一个蓝"。 */
 .dl-group-head, .dl-stage-head {
   display: flex; align-items: baseline; gap: 10px;
   font-size: 18px; font-weight: 800; color: var(--text);
-  margin-bottom: 12px; padding: 10px 14px;
-  background: rgba(148, 163, 184, 0.10);
+  margin-bottom: 12px; padding: 11px 14px;
+  background: linear-gradient(90deg,
+    var(--dl-accent-soft, rgba(56, 189, 248, 0.18)),
+    var(--dl-accent-faint, rgba(56, 189, 248, 0.03)) 70%);
   border-left: 4px solid var(--dl-accent, #38bdf8);
   border-radius: 8px;
 }
 .dl-group-head .pct, .dl-stage-head .pct {
-  margin-left: auto; font-size: 17px; font-weight: 800;
+  margin-left: auto; font-size: 19px; font-weight: 800;
   color: var(--text); font-variant-numeric: tabular-nums;
 }
 .dl-group-head .pct small, .dl-stage-head .pct small {
-  font-size: 12px; font-weight: 600; color: var(--text-dim); margin-left: 7px;
+  font-size: 13px; font-weight: 700; color: var(--dl-accent, #38bdf8);
+  margin-left: 7px;
 }
 .dl-group-head .pct small::before, .dl-stage-head .pct small::before {
-  content: "·"; margin-right: 6px; opacity: 0.65;
+  content: "·"; margin-right: 6px; opacity: 0.55;
 }
 
 /* 集合说明行：三骑士这种「包含多个关卡」的组，只做一行弱说明，不占一级色带 */
@@ -202,19 +222,32 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
   color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
 
-/* 二级：波次汇总条。比一级色带弱一档——更淡的底、中性细线、字号小一级，
-   这样「关卡 → 波次」的从属关系靠层次就能看出来，不需要两套主题色。 */
+/* 二级：波次汇总条。同一主题色的极淡填充 + 细边，比一级弱一档，
+   让「关卡 → 波次」靠层次区分，而不是靠换颜色。 */
 .dl-wave { margin: 14px 0 16px; }
 .dl-wave-head {
   display: flex; align-items: baseline; gap: 10px;
   padding: 8px 12px; margin-bottom: 2px;
-  background: rgba(148, 163, 184, 0.045);
-  border-left: 2px solid rgba(148, 163, 184, 0.38); border-radius: 6px 6px 0 0;
+  background: var(--dl-accent-faint, rgba(56, 189, 248, 0.05));
+  border-left: 2px solid var(--dl-accent-line, rgba(56, 189, 248, 0.45));
+  border-radius: 6px 6px 0 0;
   font-variant-numeric: tabular-nums;
 }
 .dl-wave-head .lbl { font-size: 13px; font-weight: 700; color: var(--text-muted); }
 .dl-wave-head .total { font-size: 17px; font-weight: 800; color: var(--text); }
 .dl-wave-head .pct { margin-left: auto; font-size: 13px; color: var(--text-dim); }
+
+/* 波次算法说明：只用于口径复杂的玩法（虚构叙事） */
+.dl-rule {
+  margin: 6px 0 2px; padding: 5px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.07);
+  border-left: 2px solid var(--border-strong);
+  border-radius: 0 4px 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.dl-rule b { color: var(--text); font-weight: 800; }
+.dl-rule .k { color: var(--dl-accent, #38bdf8); font-weight: 800; }
 
 /* 表格：固定列宽，保证每个波次的列都对齐 */
 table.dl-table {
@@ -354,24 +387,29 @@ table.dl-table {
 .stat-line .value { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ---------- 膨胀拐点卡片 ---------- */
-.tp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .tp-card {
   position: relative; padding: 12px 14px; border-radius: 10px;
-  background: linear-gradient(160deg, rgba(56,189,248,0.07), rgba(15,23,42,0.35));
-  border: 1px solid var(--border); border-left: 3px solid var(--accent, #38BDF8);
+  background: linear-gradient(160deg, var(--tp-soft, rgba(56,189,248,0.08)), rgba(15,23,42,0.35));
+  border: 1px solid var(--border); border-left: 3px solid var(--tp-color, #38BDF8);
 }
 .tp-card.tp-runaway {
-  border-left-color: #F4511E;
-  background: linear-gradient(160deg, rgba(244,81,30,0.14), rgba(15,23,42,0.4));
+  border-left-color: var(--tp-color, #F4511E);
+  background: linear-gradient(160deg, var(--tp-soft, rgba(244,81,30,0.14)), rgba(15,23,42,0.4));
   box-shadow: 0 0 0 1px rgba(244,81,30,0.18) inset;
 }
-.tp-tag { font-size: 11px; letter-spacing: .04em; color: var(--accent, #38BDF8); font-weight: 700; }
-.tp-runaway .tp-tag { color: #F4511E; }
+.tp-tag { font-size: 11px; letter-spacing: .04em; color: var(--tp-color, #38BDF8); font-weight: 800; }
 .tp-ver { font-size: 20px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .tp-name { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-.tp-num { font-size: 15px; font-weight: 700; margin-top: 7px; font-variant-numeric: tabular-nums; color: #38BDF8; }
-.tp-runaway .tp-num { color: #F4511E; }
-.tp-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.tp-num { font-size: 18px; font-weight: 800; margin-top: 7px; font-variant-numeric: tabular-nums; color: var(--tp-color, #38BDF8); }
+.tp-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+/* 判定依据：每张卡都要能自己解释"为什么这一期被选中" */
+.tp-basis {
+  font-size: 11px; color: var(--text-dim); margin-top: 8px; padding-top: 7px;
+  border-top: 1px dashed rgba(148,163,184,0.22); line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+.tp-basis b { color: var(--text-muted); font-weight: 700; }
 
 /* ---------- Fit badge ---------- */
 .fit-badge {
@@ -475,9 +513,11 @@ footer a { color: var(--text-muted); }
   <div class="section">
     <div class="section-title">膨胀拐点 · 失控起点</div>
     <div class="card">
-      <div class="desc" style="margin-bottom:12px">
-        按「环比膨胀率 ≥40% 视为跳升、≥60% 视为暴涨」筛出关键转折点；<b>失控起点</b>指该期之后
-        血量进入持续高位、再未回落到此前水平的版本。
+      <div class="desc" style="margin-bottom:12px;line-height:1.75">
+        三种判定各用不同方法，每张卡片底部注明本期被选中的依据。<br>
+        <b>异于常态</b>：环比涨幅超过<b>本品类自身</b>的 90% 分位（不用固定 40%——混沌、虚构、末日常年就在 40% 上下，固定阈值会一片飘红）。<br>
+        <b>趋势拐点</b>：对数血量上的单断点分段回归，ΔBIC ≥ 2 才认为增速真的换了台阶，卡片上给出前后两段的每期平均增速。<br>
+        <b>失控起点</b>：此后最低值仍高于此前峰值，即真的再没回来，且已膨胀到首期的 1.5 倍以上；若全程没有这种特征，改标峰值与当前回落幅度。
       </div>
       <div id="turning-points"></div>
     </div>
@@ -597,6 +637,14 @@ footer a { color: var(--text-muted); }
   function fmtPct(n) {
     if (n == null || !isFinite(n)) return "—";
     return (n * 100).toFixed(1) + "%";
+  }
+  // 把玩法主题色拆成几个透明度档位，供明细里分级填充使用。
+  // 用 CSS color-mix 也可以，但显式算 rgba 兼容性更稳，也便于在 DevTools 里核对。
+  function hexToRgba(hex, a) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+    if (!m) return `rgba(56, 189, 248, ${a})`;
+    const v = parseInt(m[1], 16);
+    return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`;
   }
 
   // ---------- KPI 卡片 ----------
@@ -1211,59 +1259,200 @@ footer a { color: var(--text-muted); }
     return charts[id];
   }
 
-  // ---------- 统计摘要 ----------
   // ---------- 膨胀拐点 · 失控起点 ----------
+  //
+  // 旧实现用固定阈值（环比 ≥40% 跳升 / ≥60% 暴涨），在这份数据上明显失效：
+  //   混沌 5 期、虚构 5 期、末日 6 期都过了 40%，因为这三个玩法本身常年就在 +40% 附近，
+  //   阈值一过就一片"暴涨"，真正异常的那一期反而看不出来。
+  // 现在三件事各用各的方法：
+  //   跳升 → 用「本品类自己的环比 P90」做阈值（自适应，节奏慢的玩法也能识别异常）
+  //   拐点 → 对数域单断点分段回归 + BIC 检验，判断增速是否发生结构性变化
+  //   失控 → 此后最低值高于此前峰值（真的再没回来），且已膨胀到首期的 1.5 倍以上
   function prevRate(rates, i) {
     // rates[k] = 第 k+1 期相对第 k 期的涨幅；取「进入第 i 期」的涨幅
     return i > 0 && i - 1 < rates.length ? rates[i - 1] : 0;
   }
 
+  // 分位数（线性插值），用于自适应阈值
+  function quantile(sorted, p) {
+    const n = sorted.length;
+    if (!n) return 0;
+    const k = (n - 1) * p, f = Math.floor(k), c = Math.ceil(k);
+    return f === c ? sorted[f] : sorted[f] * (c - k) + sorted[c] * (k - f);
+  }
+
+  // 对数域单断点分段回归：找让两段残差平方和最小的断点 k（两段共享 k 点，衔接连续）。
+  // 返回每期的对数增速 g1 / g2（expm1 后即每期百分比）与 BIC 改善量。
+  // BIC 改善 < 2 说明「分成两段」并不比一条直线更能解释数据，这种断点不该报出来。
+  function segBreak(logs) {
+    const n = logs.length;
+    if (n < 7) return null;
+
+    const fit = (from, to) => {
+      const m = to - from + 1;
+      if (m < 3) return null;
+      let sx = 0, sy = 0;
+      for (let i = from; i <= to; i++) { sx += i; sy += logs[i]; }
+      const mx = sx / m, my = sy / m;
+      let sxx = 0, sxy = 0;
+      for (let i = from; i <= to; i++) {
+        sxx += (i - mx) ** 2;
+        sxy += (i - mx) * (logs[i] - my);
+      }
+      if (sxx === 0) return null;
+      const g = sxy / sxx, a = my - g * mx;
+      let sse = 0;
+      for (let i = from; i <= to; i++) sse += (logs[i] - (a + g * i)) ** 2;
+      return { g, sse };
+    };
+
+    const full = fit(0, n - 1);
+    if (!full) return null;
+
+    let best = null;
+    // 两端各留 3 个点：只用 2 个点拟合出来的斜率毫无意义。
+    // 划分取 [0,k] 与 [k+1,n-1]，每个点只属于一段（共享断点会让同一个点被算进两段，斜率被拉偏）。
+    for (let k = 3; k <= n - 4; k++) {
+      const a = fit(0, k), b = fit(k + 1, n - 1);
+      if (!a || !b) continue;
+      const sse = a.sse + b.sse;
+      if (!best || sse < best.sse) best = { k, sse, g1: a.g, g2: b.g };
+    }
+    if (!best) return null;
+
+    const eps = 1e-12;
+    const bic0 = n * Math.log(full.sse / n + eps) + 2 * Math.log(n);   // 一条直线：2 参数
+    const bic1 = n * Math.log(best.sse / n + eps) + 4 * Math.log(n);   // 两段：4 参数
+    return { k: best.k, g1: best.g1, g2: best.g2, dBIC: bic0 - bic1 };
+  }
+
   function renderTurningPoints() {
     const box = document.getElementById("turning-points");
-    const { mode, arr, key } = currentSeries();
+    const { arr, key } = currentSeries();
     const vals = hpValues(arr, key);
     const rates = calcRate(arr, key);
+    const n = vals.length;
 
-    // 跳升（≥40%）与暴涨（≥60%）
-    const jumps = [];
-    for (let i = 0; i < rates.length; i++) {
-      if (rates[i] >= 0.4) jumps.push({ i, v: arr[i + 1], rate: rates[i], level: rates[i] >= 0.6 ? "暴涨" : "跳升" });
-    }
-    // 只保留有代表性的：按幅度排序取前 5
-    jumps.sort((a, b) => b.rate - a.rate);
-    const topJumps = jumps.slice(0, 5).sort((a, b) => a.i - b.i);
+    if (n < 4) { box.innerHTML = `<div class="desc">数据不足，至少需要 4 期才能判断拐点。</div>`; return; }
 
-    // 失控起点：要求是「局部高点」——比前一期明显上涨（≥15%），
-    // 且此后所有期都不低于该期（再未回落）。这样可排除 1.1 那种下探低点。
+    // ---- 1) 跳升：本品类自适应阈值 ----
+    const sorted = [...rates].sort((a, b) => a - b);
+    const p90 = quantile(sorted, 0.90);
+    const med = quantile(sorted, 0.50);
+    const spikes = rates
+      .map((r, i) => ({ i, rate: r }))
+      .filter(s => s.rate >= p90 && s.rate > 0);
+
+    // ---- 2) 趋势拐点：对数域分段回归 ----
+    // 两道门槛都要过：BIC 改善 ≥2（分段确实更能解释数据），且两段增速相差 ≥5 个百分点
+    // （16.7%/期 → 15.5%/期 这种虽然统计上"可分"，但读者看不出差别，报出来只是噪声）
+    const logs = vals.map(v => Math.log(Math.max(v, 1)));
+    const seg = segBreak(logs);
+    const segGap = seg ? Math.abs(Math.expm1(seg.g2) - Math.expm1(seg.g1)) : 0;
+    const segOk = !!seg && seg.dBIC >= 2 && segGap >= 0.05;
+
+    // ---- 3) 失控起点 ----
+    // 早期单调爬坡时「此后最低 > 此前峰值」几乎期期成立，会把 1.x 的普通上涨误标成失控。
+    // 加上"这一期本身是一次显著跃升"（环比 ≥ P75）才符合直觉：某次大涨之后再也没跌回来。
+    const riseBar = Math.max(quantile(sorted, 0.75), 0.15);
     let runaway = null;
-    for (let i = 1; i < vals.length; i++) {
-      const rose = prevRate(rates, i) >= 0.15;
-      if (rose && vals.slice(i).every((x) => x >= vals[i] * 0.98)) { runaway = i; break; }
+    for (let i = 1; i < n; i++) {
+      const rose = prevRate(rates, i) >= riseBar;
+      if (rose && vals[i] / vals[0] >= 1.5 && Math.min(...vals.slice(i)) >= vals[i] * 0.95) {
+        runaway = i;
+        break;
+      }
     }
 
-    const colorOf = (lvl) => (lvl === "暴涨" ? "#F4511E" : "#F59E0B");
+    const signedPct = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%";
+
+    const card = (o) => `<div class="tp-card${o.hot ? " tp-runaway" : ""}" style="--tp-color:${o.color};--tp-soft:${o.soft}">
+        <div class="tp-tag">${o.tag}</div>
+        <div class="tp-ver">${o.ver}</div>
+        <div class="tp-name">${o.name || "—"}</div>
+        <div class="tp-num">${o.num}</div>
+        <div class="tp-sub">${o.sub || ""}</div>
+        ${o.basis ? `<div class="tp-basis">${o.basis}</div>` : ""}
+      </div>`;
+
     const cards = [];
-    if (runaway !== null) {
-      const p = arr[runaway], mult = vals[runaway] / vals[0];
-      cards.push(`<div class="tp-card tp-runaway">
-        <div class="tp-tag">失控起点</div>
-        <div class="tp-ver">${p.version}</div>
-        <div class="tp-name">${p.name || "—"}</div>
-        <div class="tp-num">${fmt(vals[runaway])}</div>
-        <div class="tp-sub">此后未再回落 · 相对首期 ${mult.toFixed(2)}×</div>
-      </div>`);
+    let peakIdx = -1;                 // 无失控点时记录峰值位置，用于去重
+    const RED = "#F4511E", ORANGE = "#F59E0B", BLUE = "#38BDF8", GREEN = "#16A34A";
+
+    // 趋势拐点（增速发生结构性变化的那一期）
+    if (segOk) {
+      const k = seg.k;              // 前段最后一点，真正的拐点在它之后
+      const at = Math.min(k + 1, n - 1);
+      const before = Math.expm1(seg.g1) * 100;
+      const after = Math.expm1(seg.g2) * 100;
+      const accel = after > before;
+      cards.push(card({
+        tag: accel ? "趋势拐点 · 提速" : "趋势拐点 · 失速",
+        color: accel ? ORANGE : BLUE,
+        soft: accel ? "rgba(245,158,11,0.14)" : "rgba(56,189,248,0.12)",
+        ver: arr[at].version,
+        name: arr[at].name,
+        num: `${before.toFixed(1)}% → ${after.toFixed(1)}%/期`,
+        sub: `从这一期起增速${accel ? "抬升" : "回落"}`,
+        basis: `分段回归断点（对数域）。<b>ΔBIC ${seg.dBIC.toFixed(1)}</b>` +
+               `${seg.dBIC >= 6 ? "，强证据" : ""}；前段 ${k + 1} 期、后段 ${n - 1 - k} 期`,
+      }));
     }
-    topJumps.forEach((j) => {
-      const c = colorOf(j.level);
-      cards.push(`<div class="tp-card" style="border-left-color:${c}">
-        <div class="tp-tag" style="color:${c}">${j.level} +${(j.rate * 100).toFixed(1)}%</div>
-        <div class="tp-ver">${j.v.version}</div>
-        <div class="tp-name">${j.v.name || "—"}</div>
-        <div class="tp-num">${fmt(hpValues([j.v], key)[0])}</div>
-        <div class="tp-sub">相对首期 ${(hpValues([j.v], key)[0] / vals[0]).toFixed(2)}×</div>
-      </div>`);
-    });
-    box.innerHTML = `<div class="tp-grid">${cards.join("")}</div>`;
+
+    // 失控起点；这类玩法如果整体在回落，就改报"峰值已过"
+    if (runaway !== null) {
+      const minAfter = Math.min(...vals.slice(runaway));
+      cards.push(card({
+        hot: true, tag: "失控起点", color: RED, soft: "rgba(244,81,30,0.16)",
+        ver: arr[runaway].version,
+        name: arr[runaway].name,
+        num: fmt(vals[runaway]),
+        sub: `相对首期 ${(vals[runaway] / vals[0]).toFixed(2)}× · 此后再未回落`,
+        basis: `这一期环比 <b>${signedPct(prevRate(rates, runaway))}</b>，` +
+               `此后最低仍达 <b>${fmt(minAfter)}</b>`,
+      }));
+    } else {
+      let peak = 0;
+      for (let i = 1; i < n; i++) if (vals[i] > vals[peak]) peak = i;
+      peakIdx = peak;
+      if (peak < n - 1 && vals[peak] > 0) {
+        const now = vals[n - 1];
+        cards.push(card({
+          tag: "峰值已过", color: GREEN, soft: "rgba(22,163,74,0.12)",
+          ver: arr[peak].version,
+          name: arr[peak].name,
+          num: fmt(vals[peak]),
+          sub: `当前 ${fmt(now)} · 为峰值的 ${(now / vals[peak] * 100).toFixed(0)}%`,
+          basis: `峰值之后未再回到该水平，全程无"失控"特征`,
+        }));
+      }
+    }
+
+    // 跳升（按幅度取前几个，总卡片数控制在 4 张内）
+    // 已被「拐点」「失控」「峰值」卡片占用的那一期不再重复出现
+    const used = new Set();
+    if (segOk) used.add(Math.min(seg.k + 1, n - 1));
+    if (runaway !== null) used.add(runaway);
+    if (runaway === null) used.add(peakIdx);
+    const maxSpike = segOk ? 2 : 3;
+    spikes
+      .filter(s => !used.has(s.i + 1))
+      .sort((a, b) => b.rate - a.rate).slice(0, maxSpike)
+      .sort((a, b) => a.i - b.i)
+      .forEach(s => {
+        cards.push(card({
+          tag: "异于常态", color: RED, soft: "rgba(244,81,30,0.10)",
+          ver: arr[s.i + 1].version,
+          name: arr[s.i + 1].name,
+          num: fmt(vals[s.i + 1]),
+          sub: `环比 +${(s.rate * 100).toFixed(1)}% · 相对首期 ${(vals[s.i + 1] / vals[0]).toFixed(2)}×`,
+          basis: `高于本品类 90% 分位（+${(p90 * 100).toFixed(1)}%），常态中位数 ${signedPct(med)}`,
+        }));
+      });
+
+    box.innerHTML = cards.length
+      ? `<div class="tp-grid">${cards.join("")}</div>`
+      : `<div class="desc">本品类走势平稳，未检出显著拐点或异常跳升。</div>`;
   }
 
   // ---------- 统计摘要 ----------
@@ -1291,23 +1480,15 @@ footer a { color: var(--text-muted); }
     const lin = linReg(xs, vals);
     const exp = expFit(xs, vals);
 
-    // 拐点：加速度变号且幅度显著（阈值 = max(0.75σ, 3 个百分点)）
-    // accel[i] 描述的是「进入第 i+1 期」相对「进入第 i 期」的加速度变化，
-    // 因此拐点应记在 arr[i+1] 上（旧实现记成 arr[i]，整体早了一期）
-    const accel = rates.map((r, i) => (i > 0 ? r - rates[i - 1] : 0));
-    const accelSig = accel.slice(1);
-    const meanAcc = accelSig.reduce((s, v) => s + v, 0) / (accelSig.length || 1);
-    const stdAcc = Math.sqrt(accelSig.reduce((s, v) => s + (v - meanAcc) ** 2, 0) / (accelSig.length || 1));
-    const threshold = Math.max(stdAcc * 0.75, 0.03);
-    const inflections = [];
-    for (let i = 1; i < accel.length; i++) {
-      const cross = (accel[i] > 0 && accel[i - 1] <= 0) || (accel[i] < 0 && accel[i - 1] >= 0);
-      if (cross && Math.abs(accel[i]) >= threshold && arr[i + 1]) {
-        inflections.push(arr[i + 1].version);
-      }
-    }
-    const inflectionText = inflections.length
-      ? inflections.slice(0, 5).join("、") + (inflections.length > 5 ? " 等" : "")
+    // 拐点：与下方「膨胀拐点」区块共用同一套判据（对数域分段回归 + ΔBIC + 幅度门槛）。
+    // 早先这里另有一套「加速度变号 + 0.75σ」的检测，两处结论经常打架（摘要报 3.8/4.0、
+    // 卡片报 4.1），读者无从判断哪个才对。现在只保留一个来源。
+    const seg = segBreak(vals.map(v => Math.log(Math.max(v, 1))));
+    const segGap = seg ? Math.abs(Math.expm1(seg.g2) - Math.expm1(seg.g1)) : 0;
+    const segOk = !!seg && seg.dBIC >= 2 && segGap >= 0.05;
+    const inflectionText = segOk
+      ? `${arr[Math.min(seg.k + 1, arr.length - 1)].version}（` +
+        `${(Math.expm1(seg.g1) * 100).toFixed(1)}% → ${(Math.expm1(seg.g2) * 100).toFixed(1)}%/期）`
       : "无显著拐点";
 
     const rows = [
@@ -1412,6 +1593,31 @@ footer a { color: var(--text-muted); }
     return html;
   }
 
+  // 虚构叙事的波次口径不是「全部加起来」，不同波次规则不同，直接写在波次头下面，
+  // 读者不用回去翻文档也能自己核对这一波为什么是这个数。
+  function waveRuleNote(w) {
+    const ms = w.monsters || [];
+    if (w.rule === "boss40") {
+      // 真 BOSS 的特征：只出 1 只、且计入正好是本体的 40%
+      const boss = ms.find(m => m.count === 1 && m.hp > 0 && Math.abs(m.contrib / m.hp - 0.4) < 0.02);
+      if (!boss) return `<div class="dl-rule">本波含真 BOSS：<b>40% × BOSS</b> + 每种小怪 <b>× 10</b></div>`;
+      const minions = ms.filter(m => m !== boss);
+      const minionSum = minions.reduce((s, m) => s + Number(m.contrib || 0), 0);
+      const kinds = minions.length;
+      return `<div class="dl-rule">本波含真 BOSS：` +
+             `<span class="k">40%</span> × ${fmt(boss.hp)} = <b>${fmt(boss.contrib)}</b>` +
+             `　+　小怪 ${kinds} 种 × 10 只 = <b>${fmt(minionSum)}</b>` +
+             `　=　<b>${fmt(w.hp)}</b></div>`;
+    }
+    if (w.rule === "sum_first") {
+      return `<div class="dl-rule">首波小怪逐个结算：<b>Σ(单只血量 × 数量)</b>，已剔除「虚构集合体」</div>`;
+    }
+    if (w.rule === "sum_all") {
+      return `<div class="dl-rule">本波无真 BOSS：<b>Σ(单只血量 × 数量)</b></div>`;
+    }
+    return "";
+  }
+
   function waveTable(unit, unitTotal, scopeLabel) {
     const scope = scopeLabel || "占本组";
     const waves = unit.waves || [];
@@ -1425,6 +1631,7 @@ footer a { color: var(--text-muted); }
           <span class="total">${fmt(w.hp)}</span>
           <span class="pct">${scope} ${pctOf(w.hp, unitTotal)}</span>
         </div>
+        ${waveRuleNote(w)}
         <table class="dl-table">
           <thead><tr><th>敌人</th><th class="num">单只血量</th><th class="num">数量</th><th class="num">计入</th><th class="num">占本波</th></tr></thead>
           <tbody>${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</tbody>
@@ -1458,13 +1665,25 @@ footer a { color: var(--text-muted); }
       if (hit.length) groups = hit;
     }
 
-    subEl.textContent = (groups.length === 1)
-      ? `${mode.name} · ${groups[0].label} ${fmt(groups[0].hp)} · 占本期 ${pctOf(groups[0].hp, total)}`
-      : `${mode.name} · 合计 ${fmt(total)} · ${groups.length} 组 · 数据包 ${DATA.meta.dataVersion}`;
+    // 副标题里把总血量单独拎出来放大：它是打开这一页后第一眼要找的数字
+    subEl.innerHTML = (groups.length === 1)
+      ? `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
+        `<span class="ms-label">${groups[0].label}</span>` +
+        `<b class="ms-hp">${fmt(groups[0].hp)}</b>` +
+        `<span class="ms-pct">占本期 ${pctOf(groups[0].hp, total)}</span>`
+      : `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
+        `<span class="ms-label">全部 ${groups.length} 组</span>` +
+        `<b class="ms-hp">${fmt(total)}</b>` +
+        `<span class="ms-pct">数据包 ${DATA.meta.dataVersion}</span>`;
 
     // 明细的主题色跟随当前玩法：混沌蓝 / 虚构紫 / 末日橙 / 异相绿。
-    // 全程只用一种蓝会让「关卡 / 波次 / 数字」全部糊在一起。
-    document.getElementById("detail-modal").style.setProperty("--dl-accent", mode.color || "#38bdf8");
+    // 只用一种蓝会让「关卡 / 波次 / 数字」糊成一片；分色后每种玩法自己一套层次。
+    const modal = document.getElementById("detail-modal");
+    const accent = mode.color || "#38bdf8";
+    modal.style.setProperty("--dl-accent", accent);
+    modal.style.setProperty("--dl-accent-soft", hexToRgba(accent, 0.20));
+    modal.style.setProperty("--dl-accent-line", hexToRgba(accent, 0.5));
+    modal.style.setProperty("--dl-accent-faint", hexToRgba(accent, 0.055));
 
     body.innerHTML = groups.map(g => {
       const units = g.units || [];
