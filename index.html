@@ -168,27 +168,45 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .modal-close:hover { color: var(--text); border-color: var(--border-strong); }
 .modal-body { padding: 16px 18px 24px; overflow: auto; }
 .dl-group { margin-bottom: 22px; }
+/* 组标题：本期这一组（三骑士 / 王棋 / 绝境王棋）的总血量，做成整条色带，一眼可读 */
 .dl-group-head {
   display: flex; align-items: baseline; gap: 10px;
-  font-size: 17px; font-weight: 800; margin-bottom: 10px;
-  padding-bottom: 8px; border-bottom: 1px dashed var(--border);
+  font-size: 18px; font-weight: 800; margin-bottom: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02));
+  border-left: 4px solid var(--accent); border-radius: 8px;
 }
-.dl-group-head .pct { font-size: 13px; color: var(--text-dim); font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; }
+.dl-group-head .pct {
+  margin-left: auto; font-size: 17px; font-weight: 800;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
 
-/* 关卡小标题：三骑士里的「骑士 1 / 骑士 2 / 骑士 3」 */
+/* 关卡块：三骑士里的「骑士 1 / 骑士 2 / 骑士 3」各自成块，用边框与留白明确隔开 */
 .dl-unit {
+  margin: 14px 0;
+  padding: 12px 14px 6px;
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.dl-unit + .dl-unit { margin-top: 16px; }
+.dl-unit-head {
   display: flex; align-items: baseline; gap: 10px;
-  margin: 16px 0 8px;
-  font-size: 15px; font-weight: 700; color: var(--text);
+  margin-bottom: 6px; padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+  font-size: 16px; font-weight: 800; color: var(--text);
 }
-.dl-unit::before {
-  content: ""; width: 3px; height: 14px; border-radius: 2px;
-  background: var(--border-strong); flex: none; transform: translateY(2px);
+.dl-unit-head::before {
+  content: ""; width: 4px; height: 15px; border-radius: 2px;
+  background: var(--accent); flex: none; transform: translateY(2px);
 }
-.dl-unit .u-hp {
-  margin-left: auto; font-size: 13px; font-weight: 500;
-  color: var(--text-dim); font-variant-numeric: tabular-nums;
+.dl-unit-head .u-hp {
+  margin-left: auto; font-size: 15px; font-weight: 800;
+  color: var(--accent); font-variant-numeric: tabular-nums;
 }
+/* 块内波次条减弱一档，避免与外层卡片的底色叠成两层重影 */
+.dl-unit .dl-wave-head { background: linear-gradient(90deg, rgba(56, 189, 248, 0.08), transparent); }
+.dl-unit .dl-wave:last-child { margin-bottom: 6px; }
 
 /* 波次头：做成一条醒目的汇总条，总量字号明显大于表体 */
 .dl-wave { margin: 14px 0 16px; }
@@ -260,6 +278,11 @@ table.dl-table {
   .dl-table th:nth-child(5), .dl-table td:nth-child(5) { display: none; }
   .dl-wave-head { padding: 6px 8px; }
   .dl-wave-head .total { font-size: 15px; }
+  .dl-group-head { font-size: 15px; padding: 8px 10px; }
+  .dl-group-head .pct { font-size: 14px; }
+  .dl-unit { padding: 10px 8px 4px; }
+  .dl-unit-head { font-size: 14px; }
+  .dl-unit-head .u-hp { font-size: 13px; }
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
@@ -1441,13 +1464,21 @@ footer a { color: var(--text-muted); }
     body.innerHTML = groups.map(g => {
       const units = g.units || [g];
       const multi = units.length > 1;   // 三骑士要区分骑士 1/2/3
+      const unitHtml = units.map(u => {
+        const table = waveTable(u, multi ? u.hp : g.hp, multi ? "占本关" : "占本组");
+        if (!multi) return table;
+        // 每个关卡独立成一个块：块头是关卡名 + 该关总血量，块体是这个关的波次表
+        return `<div class="dl-unit">
+            <div class="dl-unit-head">
+              <span class="u-name">${u.label}</span>
+              <span class="u-hp">${fmt(u.hp)} · 占本期 ${pctOf(u.hp, total)}</span>
+            </div>
+            ${table}
+          </div>`;
+      }).join("");
       return `<div class="dl-group">
         <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)} · 占本期 ${pctOf(g.hp, total)}</span></div>
-        ${units.map(u => `
-          ${multi ? `<div class="dl-unit"><span class="u-name">${u.label}</span>` +
-                    `<span class="u-hp">${fmt(u.hp)} · 占本期 ${pctOf(u.hp, total)}</span></div>` : ""}
-          ${waveTable(u, multi ? u.hp : g.hp, multi ? "占本关" : "占本组")}
-        `).join("")}
+        ${unitHtml}
       </div>`;
     }).join("");
   }
