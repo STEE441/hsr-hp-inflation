@@ -321,6 +321,37 @@ def monster_name(mid, tables):
     return m.get("zh") or m.get("en") or ""
 
 
+def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1):
+    """构造一只怪物的明细条目（供前端核对「总血量是怎么组成的」）
+
+    - hp     单只怪物血量（含贪饕血条折算的等效值）
+    - contrib 这一行实际计入本波总量的血量。多数情况等于 hp × count，
+              但虚构叙事第二/三波只把 BOSS 的 40% 计入，小怪按 10 只计入。
+    - count  本波内该怪出现的只数（同一 ID 多次出现合并成一行）
+    """
+    key = str(mid)[:7]
+    mv = tables["monstervalue"].get(key) or {}
+    try:
+        ratios, _ = resolve_phases(key, mv)
+        phases = len(ratios)
+    except Exception:
+        phases = 1
+    return {
+        "id": str(mid),
+        "name": monster_name(mid, tables) or "",
+        "hp": round(hp),
+        "contrib": round(contribution if contribution is not None else hp * count),
+        "count": count,
+        "phases": phases,
+        "inv": int(invasion_level or 0),
+    }
+
+
+def sum_contrib(waves):
+    """把明细里的波次贡献加起来（用于一致性断言）"""
+    return sum(m.get("contrib", 0) for w in waves for m in w.get("monsters", []))
+
+
 def event_monster_ids(event):
     """提取 event 的 monster_list 里所有怪物 ID"""
     ids = []
@@ -334,7 +365,7 @@ def event_monster_ids(event):
 # ---------------------------------------------------------------------------
 # 混沌回忆 (moc)
 # ---------------------------------------------------------------------------
-def fetch_chaos_memory(ver, tables, live_versions):
+def fetch_chaos_memory(ver, tables, live_versions, details=None):
     """混沌回忆：每版本最高层，星启三路(或两路)怪物血量总和"""
     maze = load_reference(ver, "maze.json")
     version_map = fetch_json(f"{STATIC}/{ver}/zh/maze/version.json")
@@ -364,9 +395,14 @@ def fetch_chaos_memory(ver, tables, live_versions):
         top = normal[-1]
 
         lanes_hp = []
+        lanes_detail = [] if details is not None else None
         for key in ("event_id_list1", "event_id_list2"):
             for event in top.get(key, []):
-                lanes_hp.append(event_total_hp(event, tables, is_infinite=False))
+                wd = [] if details is not None else None
+                hp = event_total_hp(event, tables, is_infinite=False, detail=wd)
+                lanes_hp.append(hp)
+                if lanes_detail is not None:
+                    lanes_detail.append({"label": f"第 {len(lanes_hp)} 路", "hp": round(hp), "waves": wd})
 
         # 星启第三路：仅当本版本详情里确实带有星启副本时才计入。
         # maze/version.json 并不随星启开放在本期同步更新，尚未开星启的版本
@@ -374,7 +410,11 @@ def fetch_chaos_memory(ver, tables, live_versions):
         star_elem = star_by_pre.get(top["id"])
         if star_elem:
             for event in star_elem.get("event_id_list", []):
-                lanes_hp.append(event_total_hp(event, tables, is_infinite=False))
+                wd = [] if details is not None else None
+                hp = event_total_hp(event, tables, is_infinite=False, detail=wd)
+                lanes_hp.append(hp)
+                if lanes_detail is not None:
+                    lanes_detail.append({"label": f"第 {len(lanes_hp)} 路（星启）", "hp": round(hp), "waves": wd})
 
         total_hp = sum(lanes_hp)
         name = maze.get(season_id, {}).get("zh") or top.get("name") or ""
@@ -386,6 +426,8 @@ def fetch_chaos_memory(ver, tables, live_versions):
             "lanes": len(lanes_hp),
             "lanesHp": [round(x) for x in lanes_hp],
         })
+        if details is not None:
+            details[season_id] = {"name": clean_text(name), "total": round(total_hp), "lanes": lanes_detail}
 
     data.sort(key=lambda x: version_sort_key(x["version"]))
     return data
@@ -465,7 +507,7 @@ def extend_version(chaos_versions, idx):
         minor -= 10
     return f"{major}.{minor}"
 
-def fetch_apocalyptic_shadow(ver, tables):
+def fetch_apocalyptic_shadow(ver, tables, details=None):
     """末日幻影：每赛季最高难度(难度04)，星启三路(或两路)血量总和"""
     boss_map = load_reference(ver, "maze_boss.json")
     data = []
@@ -490,14 +532,23 @@ def fetch_apocalyptic_shadow(ver, tables):
         top = normal[-1]  # 难度04
 
         lanes_hp = []
+        lanes_detail = [] if details is not None else None
         for key in ("event_id_list1", "event_id_list2"):
             for event in top.get(key, []):
-                lanes_hp.append(event_total_hp(event, tables, is_infinite=False))
+                wd = [] if details is not None else None
+                hp = event_total_hp(event, tables, is_infinite=False, detail=wd)
+                lanes_hp.append(hp)
+                if lanes_detail is not None:
+                    lanes_detail.append({"label": f"第 {len(lanes_hp)} 路", "hp": round(hp), "waves": wd})
 
         star_elem = star[0] if star else None
         if star_elem:
             for event in star_elem.get("event_id_list", []):
-                lanes_hp.append(event_total_hp(event, tables, is_infinite=False))
+                wd = [] if details is not None else None
+                hp = event_total_hp(event, tables, is_infinite=False, detail=wd)
+                lanes_hp.append(hp)
+                if lanes_detail is not None:
+                    lanes_detail.append({"label": f"第 {len(lanes_hp)} 路（星启）", "hp": round(hp), "waves": wd})
 
         total_hp = sum(lanes_hp)
         data.append({
@@ -508,6 +559,12 @@ def fetch_apocalyptic_shadow(ver, tables):
             "lanes": len(lanes_hp),
             "lanesHp": [round(x) for x in lanes_hp],
         })
+        if details is not None:
+            details[season_id] = {
+                "name": clean_text(info.get("zh") or ""),
+                "total": round(total_hp),
+                "lanes": lanes_detail,
+            }
 
     data.sort(key=lambda x: int(x["seasonId"]))
     return data
@@ -516,7 +573,7 @@ def fetch_apocalyptic_shadow(ver, tables):
 # ---------------------------------------------------------------------------
 # 虚构叙事 (pf)
 # ---------------------------------------------------------------------------
-def fetch_pure_fiction(ver, tables):
+def fetch_pure_fiction(ver, tables, details=None):
     """
     虚构叙事：每赛季最高难度(其四)，星启三路(或两路)。
     每路 3 波：
@@ -556,9 +613,14 @@ def fetch_pure_fiction(ver, tables):
             lane_waves.append((star_elem.get("event_id_list", []), star_elem.get("infinite_list", {}), star_elem))
 
         lanes_hp = []
-        for ev_list, inf_list, source in lane_waves:
-            lane_hp = calc_pf_lane_hp(ev_list, inf_list, source, tables)
+        lanes_detail = [] if details is not None else None
+        for li, (ev_list, inf_list, source) in enumerate(lane_waves, 1):
+            wd = [] if details is not None else None
+            lane_hp = calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=wd)
             lanes_hp.append(lane_hp)
+            if lanes_detail is not None:
+                label = f"第 {li} 路（星启）" if li == 3 else f"第 {li} 路"
+                lanes_detail.append({"label": label, "hp": round(lane_hp), "waves": wd})
 
         total_hp = sum(lanes_hp)
         data.append({
@@ -569,6 +631,12 @@ def fetch_pure_fiction(ver, tables):
             "lanes": len(lanes_hp),
             "lanesHp": [round(x) for x in lanes_hp],
         })
+        if details is not None:
+            details[season_id] = {
+                "name": clean_text(info.get("zh") or ""),
+                "total": round(total_hp),
+                "lanes": lanes_detail,
+            }
 
     data.sort(key=lambda x: int(x["seasonId"]))
     return data
@@ -615,21 +683,49 @@ def parse_invasion(event):
     return polluted, level
 
 
-def event_total_hp(event, tables, is_infinite=False):
-    """计算一个 event 的怪物总血量（含贪饕侵蚀）"""
+def event_total_hp(event, tables, is_infinite=False, detail=None):
+    """计算一个 event 的怪物总血量（含贪饕侵蚀）
+
+    detail 传入列表时，按波次收集每只怪物明细（同一波内同 ID 合并成一行）。
+    明细里的 contrib 之和恒等于返回值，供写盘前做一致性断言。
+    """
     polluted, inv_level = parse_invasion(event)
     eg = event.get("elite_group", 0)
     hg = event.get("hard_level_group", 0)
     lv = event.get("level", 0)
     total = 0.0
-    for mid in event_monster_ids(event):
-        lvl = inv_level if mid in polluted else 0
-        total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_level=lvl)
+
+    waves = event.get("monster_list") or []
+    for wi, wave in enumerate(waves, 1):
+        wave_total = 0.0
+        agg = {}  # mid -> {"hp": 单只血量, "count": 只数, "inv": 该怪的侵蚀等级}
+        for k, mid in wave.items():
+            if not k.startswith("monster"):
+                continue
+            lvl = inv_level if mid in polluted else 0
+            mhp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_level=lvl)
+            wave_total += mhp
+            a = agg.setdefault(mid, {"hp": mhp, "count": 0, "inv": lvl})
+            a["count"] += 1
+        total += wave_total
+        if detail is not None and agg:
+            detail.append({
+                "label": f"波次 {wi}",
+                "hp": round(wave_total),
+                "monsters": [
+                    monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"])
+                    for mid, a in agg.items()
+                ],
+            })
     return total
 
 
-def calc_pf_lane_hp(ev_list, inf_list, source, tables):
-    """计算虚构叙事单路血量（3波，含集合体剔除与BOSS削减）"""
+def calc_pf_lane_hp(ev_list, inf_list, source, tables, detail=None):
+    """计算虚构叙事单路血量（3波，含集合体剔除与BOSS削减）
+
+    detail 传入列表时按波次收集明细；contrib 已折算实际计入口径：
+    第一波按只数直加，第二/三波 BOSS 只计 40%、小怪每种按 10 只计。
+    """
     # 从 infinite_list 取所有 wave（按 infinite_wave_id 排序）
     waves = []
     if isinstance(inf_list, dict):
@@ -640,7 +736,7 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables):
 
     if not waves:
         # 无 infinite 数据时回退到 event 的 monster_list
-        return calc_pf_lane_hp_fallback(ev_list, source, tables)
+        return calc_pf_lane_hp_fallback(ev_list, source, tables, detail=detail)
 
     # 等级信息整路统一，从 event 取（event_id_list1/2 的 event 含 hard_level_group + level）
     ev = (ev_list or [{}])[0] if ev_list else {}
@@ -670,7 +766,16 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables):
 
         if i == 0:
             # 第一波：小怪均匀刷新，直接求和（集合体已剔除）
-            total += sum(hp for _, hp in entries)
+            wave_total = sum(hp for _, hp in entries)
+            total += wave_total
+            agg = {}
+            for mid, hp in entries:
+                a = agg.setdefault(mid, {"hp": hp, "count": 0})
+                a["count"] += 1
+            rows = [
+                monster_entry(mid, a["hp"], inv_level if mid in polluted else 0, tables, count=a["count"])
+                for mid, a in agg.items()
+            ]
         else:
             # 第二/三波：先判断该波次是否存在「真 BOSS」（血量明显高于小怪）
             # 统计每种怪物的单只血量与数量
@@ -689,30 +794,45 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables):
                 # 有真 BOSS（2011 赛季起）：40%×BOSS + 每种小怪×10
                 #   —— 每种小怪击杀 10 只（共 20 只），各 -3% 共削减 60% BOSS，剩 40% 补刀
                 minion_total = 10.0 * sum(hp for m, hp in mid_hp.items() if m != boss_mid)
-                total += 0.4 * boss_hp + minion_total
+                wave_total = 0.4 * boss_hp + minion_total
+                total += wave_total
+                rows = []
+                for mid, hp in mid_hp.items():
+                    inv = inv_level if mid in polluted else 0
+                    if mid == boss_mid:
+                        rows.append(monster_entry(mid, hp, inv, tables, contribution=0.4 * hp, count=1))
+                    else:
+                        rows.append(monster_entry(mid, hp, inv, tables, contribution=10.0 * hp, count=10))
             else:
                 # 无真 BOSS（早期赛季）：直接 Σ(单只血量 × 数量)
-                total += sum(hp * mid_count[m] for m, hp in mid_hp.items())
+                wave_total = sum(hp * mid_count[m] for m, hp in mid_hp.items())
+                total += wave_total
+                rows = [
+                    monster_entry(mid, hp, inv_level if mid in polluted else 0, tables, count=mid_count[mid])
+                    for mid, hp in mid_hp.items()
+                ]
+
+        if detail is not None:
+            detail.append({"label": f"波次 {i + 1}", "hp": round(wave_total), "monsters": rows})
 
     return total
 
 
-def calc_pf_lane_hp_fallback(ev_list, source, tables):
+def calc_pf_lane_hp_fallback(ev_list, source, tables, detail=None):
     """无 infinite 数据时的回退：直接对 event monster_list 求和"""
     total = 0.0
-    for event in ev_list:
-        eg = event.get("elite_group", 0)
-        hg = event.get("hard_level_group", 0)
-        lv = event.get("level", 0)
-        for mid in event_monster_ids(event):
-            total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=False)
+    for li, event in enumerate(ev_list, 1):
+        wd = [] if detail is not None else None
+        total += event_total_hp(event, tables, is_infinite=False, detail=wd)
+        if detail is not None:
+            detail.extend(wd)
     return total
 
 
 # ---------------------------------------------------------------------------
 # 异相仲裁 (peak)
 # ---------------------------------------------------------------------------
-def fetch_divergent_arbitration(ver, tables, live_versions):
+def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
     """异相仲裁：每版本 3骑士总和 + 王棋 + 绝境王棋"""
     peak_map = load_reference(ver, "maze_peak.json")
     version_map = fetch_json(f"{STATIC}/{ver}/zh/peak/version.json")
@@ -731,22 +851,28 @@ def fetch_divergent_arbitration(ver, tables, live_versions):
         # 3 骑士
         knights = 0.0
         knight_details = []
-        for knight in detail.get("pre_level") or []:
+        knight_units = [] if details is not None else None
+        for ki, knight in enumerate(detail.get("pre_level") or [], 1):
             khp = 0.0
+            kw = [] if details is not None else None
             for event in knight.get("event_id_list", []):
-                khp += peak_event_hp(event, knight.get("infinite_list", {}), tables)
+                khp += peak_event_hp(event, knight.get("infinite_list", {}), tables, detail=kw)
             knights += khp
             knight_details.append(round(khp))
+            if knight_units is not None:
+                knight_units.append({"label": f"骑士 {ki}", "hp": round(khp), "waves": kw})
 
         # 王棋
         king = 0.0
+        king_waves = [] if details is not None else None
         for event in detail.get("boss_level", {}).get("event_id_list", []):
-            king += peak_event_hp(event, detail["boss_level"].get("infinite_list", {}), tables)
+            king += peak_event_hp(event, detail["boss_level"].get("infinite_list", {}), tables, detail=king_waves)
 
         # 绝境王棋
         king_abyss = 0.0
+        abyss_waves = [] if details is not None else None
         for event in detail.get("boss_config", {}).get("event_id_list", []):
-            king_abyss += peak_event_hp(event, detail["boss_config"].get("infinite_list", {}), tables)
+            king_abyss += peak_event_hp(event, detail["boss_config"].get("infinite_list", {}), tables, detail=abyss_waves)
 
         data.append({
             "version": version,
@@ -757,31 +883,62 @@ def fetch_divergent_arbitration(ver, tables, live_versions):
             "king": round(king),
             "kingAbyss": round(king_abyss),
         })
+        if details is not None:
+            details[season_id] = {
+                "name": clean_text(peak_map.get(season_id, {}).get("zh") or detail.get("name") or ""),
+                "total": round(knights + king + king_abyss),
+                "groups": [
+                    {"key": "knights", "label": "三骑士", "hp": round(knights), "units": knight_units},
+                    {"key": "king", "label": "王棋", "hp": round(king),
+                     "units": [{"label": "王棋", "hp": round(king), "waves": king_waves}]},
+                    {"key": "kingAbyss", "label": "绝境王棋", "hp": round(king_abyss),
+                     "units": [{"label": "绝境王棋", "hp": round(king_abyss), "waves": abyss_waves}]},
+                ],
+            }
 
     data.sort(key=lambda x: version_sort_key(x["version"]))
     return data
 
 
-def peak_event_hp(event, inf_list, tables):
-    """异相仲裁单个 event 的血量（无限刷怪用 infinite_list，含贪饕侵蚀）"""
+def peak_event_hp(event, inf_list, tables, detail=None):
+    """异相仲裁单个 event 的血量（无限刷怪用 infinite_list，含贪饕侵蚀）
+
+    detail 传入列表时按波次收集明细（保持原有遍历顺序，不改变数值）。
+    """
     polluted, inv_level = parse_invasion(event)
     if isinstance(inf_list, dict) and inf_list:
         # 用 infinite_list 的 monster_group_id_list（完整刷怪序列）
         total = 0.0
         hg = event.get("hard_level_group", 0)
         lv = event.get("level", 0)
-        for wid, wave in inf_list.items():
+        for wi, (wid, wave) in enumerate(inf_list.items(), 1):
             if not isinstance(wave, dict):
                 continue
             eg = wave.get("elite_group", 0)
             bonus = wave_hp_bonus(wave)
+            wave_total = 0.0
+            agg = {}
             for mid in wave.get("monster_group_id_list", []):
                 r = inv_level if mid in polluted else 0
-                total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
+                mhp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
+                wave_total += mhp
+                a = agg.setdefault(mid, {"hp": mhp, "count": 0, "inv": r})
+                a["count"] += 1
+            total += wave_total
+            if detail is not None and agg:
+                label = wave.get("infinite_wave_id", wi)
+                detail.append({
+                    "label": f"波次 {label}",
+                    "hp": round(wave_total),
+                    "monsters": [
+                        monster_entry(mid, a["hp"], a["inv"], tables, count=a["count"])
+                        for mid, a in agg.items()
+                    ],
+                })
         return total
     else:
         # 普通 event
-        return event_total_hp(event, tables, is_infinite=False)
+        return event_total_hp(event, tables, is_infinite=False, detail=detail)
 
 
 # ---------------------------------------------------------------------------
@@ -852,6 +1009,92 @@ def apply_overrides(result):
 
 
 # ---------------------------------------------------------------------------
+# 怪物明细：一致性断言 + 写盘
+# ---------------------------------------------------------------------------
+def verify_details(result, details_by_mode):
+    """明细与主数据的一致性断言。
+
+    这是「核对总血量组成」的技术保证，也是算法偏颇的自动报警器：
+    任何一层对不上就直接抛错，宁可这次不更新，也不写一份自相矛盾的数据出去。
+
+    比对层级：怪物贡献 → 波次 → 路/组 → 主数据总量。
+    带 overrides 修正的条目只做内部自洽检查（因为总量已被人工改写）。
+    """
+    def close(a, b, tol=2.0):
+        return abs(float(a) - float(b)) <= tol
+
+    for mode_key, det in details_by_mode.items():
+        mode = result.get(mode_key) or {}
+        items = {str(x.get("seasonId")): x for x in (mode.get("data") or [])}
+        for sid, d in det.items():
+            item = items.get(sid)
+            if item is None:
+                continue
+            units = d.get("lanes") or d.get("groups") or []
+
+            # 1) 波次内部：怪物贡献之和 == 波次血量
+            for unit in units:
+                for w in unit.get("waves") or []:
+                    ms = w.get("monsters") or []
+                    s = sum(x.get("contrib", 0) for x in ms)
+                    if not close(s, w.get("hp", 0), max(2.0, len(ms) * 1.0)):
+                        raise RuntimeError(
+                            f"[明细不一致] {mode_key} 赛季 {sid} · {unit.get('label')} · {w.get('label')}："
+                            f"怪物贡献合计 {s:,} ≠ 波次血量 {w.get('hp', 0):,}"
+                        )
+
+            # 2) 组/路 → 主数据
+            patched = bool(item.get("overrideNote"))
+            if mode_key == "divergentArbitration":
+                for g in units:
+                    us = sum(u.get("hp", 0) for u in (g.get("units") or []))
+                    if not close(us, g.get("hp", 0), max(2.0, len(g.get("units") or []))):
+                        raise RuntimeError(
+                            f"[明细不一致] {mode_key} 赛季 {sid} · {g.get('label')}："
+                            f"子项合计 {us:,} ≠ 组血量 {g.get('hp', 0):,}"
+                        )
+                    if not patched and not close(g.get("hp", 0), item.get(g.get("key"), 0)):
+                        raise RuntimeError(
+                            f"[明细不一致] {mode_key} 赛季 {sid} · {g.get('label')}："
+                            f"明细 {g.get('hp', 0):,} ≠ 主数据 {item.get(g.get('key'), 0):,}"
+                        )
+            else:
+                lhp = item.get("lanesHp") or []
+                if len(units) != len(lhp):
+                    raise RuntimeError(
+                        f"[明细不一致] {mode_key} 赛季 {sid}：明细 {len(units)} 路 ≠ 主数据 {len(lhp)} 路"
+                    )
+                if not patched:
+                    for lane, v in zip(units, lhp):
+                        if not close(lane.get("hp", 0), v):
+                            raise RuntimeError(
+                                f"[明细不一致] {mode_key} 赛季 {sid} · {lane.get('label')}："
+                                f"明细 {lane.get('hp', 0):,} ≠ 主数据 {v:,}"
+                            )
+    return True
+
+
+def write_details(details_by_mode, out_path):
+    """把 4 个玩法的明细各写一份 JSON（紧凑格式，减小体积）"""
+    base = os.path.dirname(os.path.abspath(out_path))
+    ddir = os.path.join(base, "details")
+    os.makedirs(ddir, exist_ok=True)
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    out = []
+    for mode_key, det in details_by_mode.items():
+        payload = {"mode": mode_key, "generatedAt": stamp, "versions": det}
+        path = os.path.join(ddir, f"{mode_key}.json")
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, path)
+        out.append((mode_key, len(det), os.path.getsize(path)))
+    for mode_key, n, size in out:
+        print(f"  明细 {mode_key:<22} {n:>3} 期  {size / 1024:>7.1f} KB")
+    return out
+
+
+# ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
 def main():
@@ -870,20 +1113,27 @@ def main():
     live_versions = detect_live_versions(ver)
     print(f"正式服版本(live): {sorted(live_versions, key=version_sort_key)}")
 
+    details_by_mode = {
+        "chaosMemory": {},
+        "apocalypticShadow": {},
+        "pureFiction": {},
+        "divergentArbitration": {},
+    }
+
     print("\n[1/4] 抓取混沌回忆...")
-    chaos = fetch_chaos_memory(ver, tables, live_versions)
+    chaos = fetch_chaos_memory(ver, tables, live_versions, details=details_by_mode["chaosMemory"])
     print(f"  -> {len(chaos)} 个版本")
 
     print("[2/4] 抓取末日幻影...")
-    shadow = fetch_apocalyptic_shadow(ver, tables)
+    shadow = fetch_apocalyptic_shadow(ver, tables, details=details_by_mode["apocalypticShadow"])
     print(f"  -> {len(shadow)} 个赛季")
 
     print("[3/4] 抓取虚构叙事...")
-    fiction = fetch_pure_fiction(ver, tables)
+    fiction = fetch_pure_fiction(ver, tables, details=details_by_mode["pureFiction"])
     print(f"  -> {len(fiction)} 个赛季")
 
     print("[4/4] 抓取异相仲裁...")
-    peak = fetch_divergent_arbitration(ver, tables, live_versions)
+    peak = fetch_divergent_arbitration(ver, tables, live_versions, details=details_by_mode["divergentArbitration"])
     print(f"  -> {len(peak)} 个版本")
 
     result = {
@@ -901,6 +1151,16 @@ def main():
 
     result = align_versions(result)
     result = apply_overrides(result)
+
+    # ---- 明细一致性断言：任何一层对不上就一个文件都不写 ----
+    # 放在写主数据之前，保证「有问题的数据不落地」。
+    try:
+        verify_details(result, details_by_mode)
+        print("\n✓ 明细与主数据一致（怪物 → 波次 → 路/组 → 总量）")
+    except RuntimeError as e:
+        print(f"\n✗ {e}", file=sys.stderr)
+        print("✗ 已中止：明细与主数据对不上，现有文件未被修改。", file=sys.stderr)
+        sys.exit(1)
 
     out_path = out_path_arg
 
@@ -925,6 +1185,10 @@ def main():
 
     # 校验通过：原子替换（同目录内 rename 是原子操作，不会出现半个文件）
     os.replace(tmp_path, out_path)
+
+    # ---- 怪物明细：按玩法拆 4 个文件，前端点开某一期时才加载 ----
+    print("\n明细文件:")
+    write_details(details_by_mode, out_path)
 
     # 同步输出 JS 版本（供页面 <script> 直接加载，规避 file:// CORS）
     # 用紧凑格式 + 末尾换行，避免把整个文件挤成一行导致 diff 无意义
