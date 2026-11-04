@@ -1636,6 +1636,10 @@ footer a { color: var(--text-muted); }
       .sort((a, b) => b.r - a.r);
     const hot = majorRank[0], cold = majorRank[majorRank.length - 1];
 
+    // 某个大版本刚开、只有 1 期时算不出增速（需要两个点）。这一行会整行显示 "—"，
+    // 不解释的话读者会以为坏了，所以自动补一句说明。
+    const pending = majors.filter(k => combo(k) == null);
+
     box.innerHTML = `<div class="norm-wrap">
       <div class="norm-head"><h4>各版本平均膨胀率</h4><span>每个小版本的平均环比增速（几何平均）</span></div>
       <table class="norm-table">
@@ -1647,7 +1651,9 @@ footer a { color: var(--text-muted); }
         最快 <b>${fast ? fast.name + " " + pct(fast.all.rate) + "/期" : "—"}</b>，
         最慢 <b>${slow ? slow.name + " " + pct(slow.all.rate) + "/期" : "—"}</b>；
         版本段中 <b>${hot.k}.X</b> 最猛（<b>${pct(hot.r)}/期</b>），<b>${cold.k}.X</b> 最缓（<b>${pct(cold.r)}/期</b>）。
-        悬停单元格可见该段期数与累计倍数。
+        悬停单元格可见该段期数与累计倍数。${pending.length
+          ? `<br><b>${pending.map(k => k + ".X").join("、")}</b> 目前只有 1 期，增速要两个点才能算，出现第二个小版本后会自动补上。`
+          : ""}
       </div>
     </div>`;
   }
