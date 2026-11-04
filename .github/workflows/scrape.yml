@@ -55,7 +55,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # index.html 也要加进来：爬虫会在其中同步更新 health_data.js 的缓存破除查询串，
           # 不加的话线上访问者会一直命中旧缓存，看不到新数据。
-          git add data/health_data.json data/health_data.js index.html
+          git add data/health_data.json data/health_data.js data/details index.html
           if git diff --cached --quiet; then
             echo "No data changes, skip commit"
           else

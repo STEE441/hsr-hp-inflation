@@ -969,6 +969,107 @@ def detect_live_versions(ver):
     return live
 
 
+def load_overrides_file():
+    """读取 data/overrides.json，找不到或解析失败时返回 (None, 路径)"""
+    candidates = [
+        "data/overrides.json",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "overrides.json"),
+    ]
+    path = next((c for c in candidates if os.path.exists(c)), None)
+    if not path:
+        return None, None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f), path
+    except Exception as e:
+        print(f"警告: overrides.json 解析失败，忽略覆盖层: {e}")
+        return None, path
+
+
+def apply_monster_overrides(details_by_mode, result):
+    """按怪物 ID 修正明细，并自下而上重算 波次 → 路/组 → 总量。
+
+    overrides.json 里的 "_monsters" 段（与版本级修正是两个独立通道）：
+        {
+          "_monsters": {
+            "chaosMemory": { "1036": { "5013010": { "hp": 4000000, "_note": "实测偏低" } } }
+          }
+        }
+
+    这是最省事的打补丁方式：只改一只怪，上层三级数字全部自动跟着变，
+    不用手工同步 wave / lane / total，也不会出现「改了明细但总数没动」的矛盾。
+    """
+    ov, _ = load_overrides_file()
+    mo = (ov or {}).get("_monsters") or {}
+    if not isinstance(mo, dict):
+        return 0
+
+    applied = 0
+    for mode_key, versions in mo.items():
+        if not isinstance(versions, dict):
+            continue
+        det = details_by_mode.get(mode_key) or {}
+        mode = result.get(mode_key) or {}
+        items = {str(x.get("seasonId")): x for x in (mode.get("data") or [])}
+
+        for vid, patches in versions.items():
+            d = det.get(str(vid))
+            item = items.get(str(vid))
+            if not d or not item or not isinstance(patches, dict):
+                continue
+
+            hit = 0
+            for unit in (d.get("lanes") or d.get("groups") or []):
+                for w in unit.get("waves") or []:
+                    for m in w.get("monsters") or []:
+                        patch = patches.get(str(m.get("id")))
+                        if not isinstance(patch, dict) or patch.get("hp") is None:
+                            continue
+                        old = float(m.get("hp") or 0)
+                        new = float(patch["hp"])
+                        if old > 0 and new > 0:
+                            # contrib 按同比例缩放，保持「40% BOSS / ×10 小怪」等口径不变
+                            m["contrib"] = round(float(m.get("contrib") or 0) * (new / old))
+                        m["hp"] = round(new)
+                        if patch.get("_note"):
+                            m["note"] = patch["_note"]
+                        hit += 1
+            if not hit:
+                continue
+
+            # 自下而上重算
+            for unit in (d.get("lanes") or d.get("groups") or []):
+                for w in unit.get("waves") or []:
+                    w["hp"] = sum(int(x.get("contrib") or 0) for x in (w.get("monsters") or []))
+                unit["hp"] = sum(int(w.get("hp") or 0) for w in (unit.get("waves") or []))
+
+            units = d.get("lanes") or d.get("groups") or []
+            if mode_key == "divergentArbitration":
+                for g in units:
+                    if g.get("units"):
+                        g["hp"] = sum(int(u.get("hp") or 0) for u in g["units"])
+                d["total"] = sum(int(g.get("hp") or 0) for g in units)
+                for g in units:
+                    if g.get("key") in item:
+                        item[g["key"]] = int(g.get("hp") or 0)
+                knight_units = next((g.get("units") for g in units if g.get("key") == "knights"), None)
+                if knight_units:
+                    item["knightDetails"] = [int(u.get("hp") or 0) for u in knight_units]
+            else:
+                d["total"] = sum(int(u.get("hp") or 0) for u in units)
+                item["hp"] = d["total"]
+                item["lanesHp"] = [int(u.get("hp") or 0) for u in units]
+                item["lanes"] = len(units)
+
+            item["overrideNote"] = "含怪物级人工修正"
+            applied += hit
+            print(f"  怪物级修正重算: {mode_key} 赛季 {vid}（{hit} 只）→ 总量 {d['total']:,}")
+
+    if applied:
+        print(f"已应用 {applied} 条怪物级修正（overrides.json 的 _monsters 段）")
+    return applied
+
+
 def apply_overrides(result):
     """应用手动修正覆盖层 data/overrides.json（与自动抓取数据分离，互不污染）"""
     import os
@@ -1150,6 +1251,9 @@ def main():
     }
 
     result = align_versions(result)
+    # 怪物级修正优先：改一只怪 → 自动重算 波次/路/总量
+    apply_monster_overrides(details_by_mode, result)
+    # 版本级修正殿后：整体兜底，会覆盖上面的重算结果
     result = apply_overrides(result)
 
     # ---- 明细一致性断言：任何一层对不上就一个文件都不写 ----
