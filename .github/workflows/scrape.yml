@@ -1,4 +1,4 @@
-name: 每日抓取血量数据
+name: Daily HP Data Scrape
 
 on:
   schedule:
@@ -28,29 +28,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: 安装依赖
+      - name: Install dependencies
         # 固定主版本，避免上游发布不兼容更新时定时任务突然失效
         run: pip install "requests>=2.31,<3"
 
-      - name: 运行爬虫
+      - name: Run scraper
         # scraper.py 内部会：抓取 → 写临时文件 → 调用 validate.py 校验 → 通过才原子替换。
         # 校验不通过时会以退出码 1 结束，本步骤随之失败，后续的提交步骤不会执行，
         # 现有数据文件保持原样，网站不受影响。失败会在 Actions 页面标红并邮件通知。
         run: python scripts/scraper.py data/health_data.json
 
-      - name: 检查数据文件是否合法
+      - name: Validate data file
         # 双重保险：即使前面的校验被绕过，这里再验证一次产出的 JSON 可被正常解析。
         run: |
           python -c "
           import json, sys
           d = json.load(open('data/health_data.json', encoding='utf-8'))
           total = sum(len(d[k]['data']) for k in ('chaosMemory','apocalypticShadow','pureFiction','divergentArbitration'))
-          print(f'数据点总数: {total}')
+          print(f'Total data points: {total}')
           if total == 0:
-              print('数据点总数为 0，拒绝提交', file=sys.stderr); sys.exit(1)
+              print('Total data points is 0, refuse to commit', file=sys.stderr); sys.exit(1)
           "
 
-      - name: 提交数据变更
+      - name: Commit data changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -58,8 +58,8 @@ jobs:
           # 不加的话线上访问者会一直命中旧缓存，看不到新数据。
           git add data/health_data.json data/health_data.js index.html
           if git diff --cached --quiet; then
-            echo "数据无变化，跳过提交"
+            echo "No data changes, skip commit"
           else
-            git commit -m "chore: 每日血量数据更新 ($(date -u +%F))"
+            git commit -m "chore: daily HP data update ($(date -u +%F))"
             git push
           fi
