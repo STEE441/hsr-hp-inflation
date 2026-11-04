@@ -398,18 +398,53 @@ table.dl-table {
   background: linear-gradient(160deg, var(--tp-soft, rgba(244,81,30,0.14)), rgba(15,23,42,0.4));
   box-shadow: 0 0 0 1px rgba(244,81,30,0.18) inset;
 }
-.tp-tag { font-size: 11px; letter-spacing: .04em; color: var(--tp-color, #38BDF8); font-weight: 800; }
+.tp-tag { font-size: 12px; letter-spacing: .04em; color: var(--tp-color, #38BDF8); font-weight: 800; }
 .tp-ver { font-size: 20px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.tp-name { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.tp-name { font-size: 13px; color: #cbd5e1; margin-top: 2px; font-weight: 600; }
 .tp-num { font-size: 18px; font-weight: 800; margin-top: 7px; font-variant-numeric: tabular-nums; color: var(--tp-color, #38BDF8); }
-.tp-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
-/* 判定依据：每张卡都要能自己解释"为什么这一期被选中" */
+.tp-sub { font-size: 13px; color: var(--text); margin-top: 4px; font-variant-numeric: tabular-nums; }
+/* 判定依据：每张卡都要能自己解释"为什么这一期被选中"——
+   字号不能压到看不清，否则等于没写 */
 .tp-basis {
-  font-size: 11px; color: var(--text-dim); margin-top: 8px; padding-top: 7px;
-  border-top: 1px dashed rgba(148,163,184,0.22); line-height: 1.55;
+  font-size: 12px; color: var(--text-muted); margin-top: 9px; padding-top: 8px;
+  border-top: 1px dashed rgba(148,163,184,0.35); line-height: 1.6;
   font-variant-numeric: tabular-nums;
 }
-.tp-basis b { color: var(--text-muted); font-weight: 700; }
+.tp-basis b { color: var(--text); font-weight: 800; }
+
+/* ---------- 归一化对比下方的大版本统计 ---------- */
+.norm-wrap { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+.norm-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.norm-head h4 { font-size: 14px; font-weight: 800; color: var(--text); }
+.norm-head span { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.norm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.norm-table th {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.norm-table th:first-child { text-align: left; }
+.norm-table td {
+  padding: 9px 10px; text-align: right; vertical-align: middle;
+  font-variant-numeric: tabular-nums; border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+  color: var(--text);
+}
+.norm-table td:first-child { text-align: left; font-weight: 800; color: var(--text); }
+.norm-table td.na { color: var(--text-dim); }
+.norm-table td.combo { font-weight: 800; color: var(--accent); }
+.norm-table tr.all td { border-top: 2px solid var(--border-strong); font-weight: 800; }
+.norm-table tr.all td:first-child { color: var(--accent); }
+.norm-note { margin-top: 10px; font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+.norm-note b { color: var(--text); font-weight: 700; }
+@media (max-width: 640px) {
+  .norm-table { font-size: 12px; }
+  .norm-table th, .norm-table td { padding: 7px 6px; }
+  .norm-table th:nth-child(5), .norm-table td:nth-child(5) { display: none; }
+  /* 窄屏标题与说明各占一行，否则 flex 会把标题挤成两行 */
+  .norm-head { display: block; margin-bottom: 8px; }
+  .norm-head h4 { margin-bottom: 3px; }
+  .norm-head span { display: block; line-height: 1.5; }
+}
 
 /* ---------- Fit badge ---------- */
 .fit-badge {
@@ -513,12 +548,6 @@ footer a { color: var(--text-muted); }
   <div class="section">
     <div class="section-title">膨胀拐点 · 失控起点</div>
     <div class="card">
-      <div class="desc" style="margin-bottom:12px;line-height:1.75">
-        三种判定各用不同方法，每张卡片底部注明本期被选中的依据。<br>
-        <b>异于常态</b>：环比涨幅超过<b>本品类自身</b>的 90% 分位（不用固定 40%——混沌、虚构、末日常年就在 40% 上下，固定阈值会一片飘红）。<br>
-        <b>趋势拐点</b>：对数血量上的单断点分段回归，ΔBIC ≥ 2 才认为增速真的换了台阶，卡片上给出前后两段的每期平均增速。<br>
-        <b>失控起点</b>：此后最低值仍高于此前峰值，即真的再没回来，且已膨胀到首期的 1.5 倍以上；若全程没有这种特征，改标峰值与当前回落幅度。
-      </div>
       <div id="turning-points"></div>
     </div>
   </div>
@@ -534,6 +563,7 @@ footer a { color: var(--text-muted); }
     <div class="section-title">全玩法归一化对比</div>
     <div class="card">
       <div class="chart" id="chart-compare" style="height:340px"></div>
+      <div id="norm-stats"></div>
     </div>
   </div>
 
@@ -1512,6 +1542,8 @@ footer a { color: var(--text-muted); }
   function renderCompare() {
     const el = document.getElementById("chart-compare");
     if (!charts.compare) charts.compare = echarts.init(el);
+    // 窄屏放不下四个图例项，缩小字号并给图例多留一行高度，否则会压住 Y 轴标题
+    const narrow = window.innerWidth < 700;
     const series = MODES.map(m => {
       const arr = (DATA[m.key] || {}).data || [];
       return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth: true, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
@@ -1519,13 +1551,102 @@ footer a { color: var(--text-muted); }
     charts.compare.setOption({
       backgroundColor: "transparent",
       tooltip: { trigger: "axis", backgroundColor: "rgba(15,23,42,0.95)", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
-      legend: { top: 0, textStyle: { color: MUTED } },
-      grid: { left: 56, right: 24, top: 46, bottom: 8, containLabel: true },
+      legend: { top: 0, itemGap: narrow ? 10 : 16, textStyle: { color: MUTED, fontSize: narrow ? 11 : 12 } },
+      grid: { left: 56, right: 24, top: narrow ? 64 : 46, bottom: 8, containLabel: true },
       xAxis: { type: "category", axisLabel: { show: false }, axisLine: { lineStyle: { color: BORDER } } },
-      yAxis: { type: "value", name: "相对倍数", nameTextStyle: { color: DIM }, axisLabel: { ...axisStyle, margin: 10 }, splitLine },
+      yAxis: { type: "value", name: narrow ? "" : "相对倍数", nameTextStyle: { color: DIM }, axisLabel: { ...axisStyle, margin: 10 }, splitLine },
       series,
       animationDuration: 500,
     }, true);
+  }
+
+  // ---------- 各大版本的平均膨胀率 ----------
+  // 单个大版本内取「首期到末期」的几何平均每期增速：
+  //   (末值/首值)^(1/(期数-1)) - 1
+  // 不用算术平均：连乘的复利速度只有几何平均才对得上期末值。
+  function majorRates(arr, key) {
+    const buckets = new Map();
+    arr.forEach(p => {
+      const v = String(p.version || "");
+      const major = v.split(".")[0];
+      if (!/^\d+$/.test(major)) return;    // 末日幻影外推出的 4.7 属于 4.X，照常归组
+      if (!buckets.has(major)) buckets.set(major, []);
+      buckets.get(major).push(Number(p[key] || 0));
+    });
+    const out = {};
+    buckets.forEach((vals, k) => {
+      const n = vals.length;
+      if (n < 2 || !(vals[0] > 0) || !(vals[n - 1] > 0)) { out[k] = null; return; }
+      out[k] = {
+        rate: Math.pow(vals[n - 1] / vals[0], 1 / (n - 1)) - 1,
+        n,
+        mult: vals[n - 1] / vals[0],
+      };
+    });
+    return out;
+  }
+
+  function renderNormStats() {
+    const box = document.getElementById("norm-stats");
+    if (!box || !DATA) return;
+
+    const modes = MODES.map(m => {
+      const arr = (DATA[m.key] || {}).data || [];
+      const vals = arr.map(p => Number(p[m.hpKey] || 0));
+      const n = vals.length;
+      const all = (n >= 2 && vals[0] > 0 && vals[n - 1] > 0)
+        ? { rate: Math.pow(vals[n - 1] / vals[0], 1 / (n - 1)) - 1, n, mult: vals[n - 1] / vals[0] }
+        : null;
+      return { name: m.name, rates: majorRates(arr, m.hpKey), all };
+    });
+
+    const majors = [...new Set(modes.flatMap(m => Object.keys(m.rates)))]
+      .sort((a, b) => Number(a) - Number(b));
+
+    // 综合：各玩法按期数加权。期数多的玩法在样本里占比更大，直接等权会失真。
+    const combo = (major) => {
+      let sum = 0, cnt = 0;
+      modes.forEach(m => {
+        const r = major ? m.rates[major] : m.all;
+        if (r && r.n > 1) { sum += r.rate * r.n; cnt += r.n; }
+      });
+      return cnt ? sum / cnt : null;
+    };
+
+    const pct = v => (v == null ? "—" : (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%");
+    const cell = r => r
+      ? `<td title="${r.n} 期 · 期间 ${r.mult.toFixed(2)}×">${pct(r.rate)}</td>`
+      : `<td class="na">—</td>`;
+
+    const body = majors.map(k =>
+      `<tr><td>${k}.X</td>${modes.map(m => cell(m.rates[k])).join("")}` +
+      `<td class="combo">${pct(combo(k))}</td></tr>`
+    ).join("");
+
+    const comboAll = combo(null);
+    const allRow = `<tr class="all"><td>全程</td>${modes.map(m => cell(m.all)).join("")}` +
+                   `<td class="combo">${pct(comboAll)}</td></tr>`;
+
+    const ranked = modes.filter(m => m.all).sort((a, b) => b.all.rate - a.all.rate);
+    const fast = ranked[0], slow = ranked[ranked.length - 1];
+    const majorRank = majors.map(k => ({ k, r: combo(k) })).filter(x => x.r != null)
+      .sort((a, b) => b.r - a.r);
+    const hot = majorRank[0], cold = majorRank[majorRank.length - 1];
+
+    box.innerHTML = `<div class="norm-wrap">
+      <div class="norm-head"><h4>各版本平均膨胀率</h4><span>每个小版本的平均环比增速（几何平均）</span></div>
+      <table class="norm-table">
+        <thead><tr><th>版本</th>${modes.map(m => `<th>${m.name}</th>`).join("")}<th>综合</th></tr></thead>
+        <tbody>${body}${allRow}</tbody>
+      </table>
+      <div class="norm-note">
+        综合为四个玩法按期数加权。全程平均 <b>${pct(comboAll)}/期</b>；
+        最快 <b>${fast ? fast.name + " " + pct(fast.all.rate) + "/期" : "—"}</b>，
+        最慢 <b>${slow ? slow.name + " " + pct(slow.all.rate) + "/期" : "—"}</b>；
+        版本段中 <b>${hot.k}.X</b> 最猛（<b>${pct(hot.r)}/期</b>），<b>${cold.k}.X</b> 最缓（<b>${pct(cold.r)}/期</b>）。
+        悬停单元格可见该段期数与累计倍数。
+      </div>
+    </div>`;
   }
 
   // ---------- 导出 ----------
@@ -1778,6 +1899,7 @@ footer a { color: var(--text-muted); }
   renderStats();
   renderTurningPoints();
   renderCompare();
+  renderNormStats();
 })();
 </script>
 </body>
