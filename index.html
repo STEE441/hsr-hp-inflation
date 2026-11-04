@@ -113,14 +113,23 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 @media (max-width: 820px) {
   .kpi-grid.cols-3 { grid-template-columns: 1fr; }
 }
-/* 分组小标题 */
+/* 分组小标题：只保留玩法名，放大并用该玩法主题色 */
 .kpi-group-head {
-  display: flex; align-items: center; gap: 10px;
-  margin: -8px 0 10px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 12px;
+  margin: -4px 0 12px;
+}
+.kpi-group-title {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 800; letter-spacing: 0.5px;
+  color: #34d399;
+}
+.kpi-group-title::before {
+  content: ""; width: 4px; height: 16px; border-radius: 2px;
+  background: linear-gradient(180deg, #34d399, #38bdf8);
 }
 .kpi-group-head::after {
   content: ""; flex: 1; height: 1px;
-  background: linear-gradient(90deg, var(--border), transparent);
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.35), transparent);
 }
 /* 卡片可点击，激活态跟随当前玩法/子指标 */
 .kpi-card { cursor: pointer; }
@@ -158,21 +167,63 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 }
 .modal-close:hover { color: var(--text); border-color: var(--border-strong); }
 .modal-body { padding: 14px 18px 22px; overflow: auto; }
-.dl-group { margin-bottom: 18px; }
+.dl-group { margin-bottom: 20px; }
 .dl-group-head {
   display: flex; align-items: baseline; gap: 10px;
-  font-size: 13px; font-weight: 700; margin-bottom: 8px;
-  padding-bottom: 6px; border-bottom: 1px dashed var(--border);
+  font-size: 15px; font-weight: 800; margin-bottom: 10px;
+  padding-bottom: 7px; border-bottom: 1px dashed var(--border);
 }
-.dl-group-head .pct { font-size: 11px; color: var(--text-dim); font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; }
-.dl-wave { margin: 10px 0 12px; }
-.dl-wave-head { font-size: 11px; color: var(--text-dim); margin-bottom: 5px; font-variant-numeric: tabular-nums; }
-table.dl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.dl-table th, .dl-table td { padding: 5px 8px; text-align: left; }
-.dl-table thead th { font-size: 11px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
-.dl-table tbody tr { border-bottom: 1px solid rgba(30, 41, 59, 0.55); }
-.dl-table tbody tr:last-child { border-bottom: none; }
+.dl-group-head .pct { font-size: 12px; color: var(--text-dim); font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* 波次头：做成一条醒目的汇总条，总量字号明显大于表体 */
+.dl-wave { margin: 14px 0 16px; }
+.dl-wave-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 8px 10px; margin-bottom: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.10), transparent);
+  border-left: 3px solid var(--accent); border-radius: 6px 6px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.dl-wave-head .lbl { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.dl-wave-head .total { font-size: 17px; font-weight: 800; color: var(--text); }
+.dl-wave-head .pct { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+
+/* 表格：固定列宽，保证每个波次的列都对齐 */
+table.dl-table {
+  width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px;
+}
+.dl-table th, .dl-table td {
+  padding: 7px 10px; text-align: left; vertical-align: middle; line-height: 1.45;
+}
+/* 第 1 列敌人 / 2 单只血量 / 3 数量 / 4 计入 / 5 占本波 */
+.dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 32%; }
+.dl-table th:nth-child(2), .dl-table td:nth-child(2) { width: 20%; }
+.dl-table th:nth-child(3), .dl-table td:nth-child(3) { width: 9%;  }
+.dl-table th:nth-child(4), .dl-table td:nth-child(4) { width: 23%; }
+.dl-table th:nth-child(5), .dl-table td:nth-child(5) { width: 16%; }
+
+/* 明细里的表头必须回到普通流：全局 thead th 是 sticky，多个波次叠起来会糊成一团 */
+.dl-table thead th {
+  font-size: 12px; color: var(--text-dim); font-weight: 600;
+  position: static; background: transparent;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
 .dl-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dl-table td:first-child { white-space: normal; word-break: break-word; }
+.dl-row td { border-bottom: 1px solid rgba(30, 41, 59, 0.55); }
+
+/* 阶段 / 贪饕副行：主行的分项分解，不参与「计入」列的汇总 */
+.dl-sub td {
+  padding: 3px 10px; font-size: 12px; color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.045); border: none;
+}
+.dl-sub td.sub { padding-left: 28px; position: relative; }
+.dl-sub td.sub::before {
+  content: "└"; position: absolute; left: 12px; color: var(--border-strong);
+}
+.dl-sub.inv td { color: var(--warn); background: rgba(244, 81, 30, 0.06); }
+.dl-sub:last-child td { border-bottom: 1px solid rgba(30, 41, 59, 0.55); }
+
 .dl-tag {
   display: inline-block; font-size: 10px; padding: 0 5px; border-radius: 4px;
   margin-left: 6px; vertical-align: 1px;
@@ -181,13 +232,22 @@ table.dl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .dl-tag.ph { background: rgba(56, 189, 248, 0.12); color: var(--accent); border-color: rgba(56, 189, 248, 0.3); }
 .dl-loading, .dl-error { padding: 30px 8px; text-align: center; color: var(--text-muted); font-size: 13px; }
 .dl-error { color: var(--warn); }
+
 @media (max-width: 640px) {
   .modal-mask { padding: 0; }
   .modal-panel { width: 100%; max-height: 100dvh; height: 100dvh; border-radius: 0; border: none; }
-  .dl-table th, .dl-table td { padding: 4px 5px; font-size: 11px; }
-  /* 窄屏优先保住「怪物 / 单只 / 只数 / 计入」，占比可自行用计入÷波次推算 */
+  .dl-table th, .dl-table td { padding: 5px 6px; font-size: 12px; }
+  .dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 40%; }
+  .dl-table th:nth-child(2), .dl-table td:nth-child(2) { width: 26%; }
+  .dl-table th:nth-child(3), .dl-table td:nth-child(3) { width: 12%; }
+  .dl-table th:nth-child(4), .dl-table td:nth-child(4) { width: 22%; }
+  /* 窄屏优先保住「敌人 / 单只 / 数量 / 计入」，占比可自行用计入÷波次推算 */
   .dl-table th:nth-child(5), .dl-table td:nth-child(5) { display: none; }
-  .dl-table td:first-child { white-space: normal; }
+  .dl-wave-head { padding: 6px 8px; }
+  .dl-wave-head .total { font-size: 15px; }
+  .dl-sub td { padding: 2px 6px; font-size: 11px; }
+  .dl-sub td.sub { padding-left: 18px; }
+  .dl-sub td.sub::before { left: 6px; }
 }
 
 /* ---------- Section ---------- */
@@ -224,6 +284,10 @@ table.dl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .main-legend .lg-item { display: inline-flex; align-items: center; gap: 6px; transition: color .2s ease, opacity .2s ease; }
 .main-legend .lg-item i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; transition: opacity .2s ease; }
 .main-legend .lg-item.on { color: var(--text); font-weight: 600; }
+.main-legend .lg-mult {
+  color: var(--warn); font-weight: 700; font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 .mini-btn {
   padding: 5px 10px; font-size: 11px; border-radius: 7px; cursor: pointer;
   background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border);
@@ -324,7 +388,7 @@ footer a { color: var(--text-muted); }
 
   <div class="kpi-grid cols-3" id="kpi-grid"></div>
 
-  <div class="kpi-group-head">异相仲裁 · 三个独立指标</div>
+  <div class="kpi-group-head"><span class="kpi-group-title">异相仲裁</span></div>
   <div class="kpi-grid cols-3" id="kpi-grid-arb"></div>
 
   <div class="section">
@@ -338,7 +402,7 @@ footer a { color: var(--text-muted); }
           <button class="mini-btn" id="btn-smooth" title="平滑曲线">平滑</button>
         </div>
         <div class="chart" id="main-chart"></div>
-        <div class="chart-hint">点击曲线上的任意数据点，可查看该期怪物组合与血量构成</div>
+        <div class="chart-hint">点击图表内任意版本位置（不必点在圆点上），可查看该期敌人组合与血量构成</div>
       </div>
     </div>
   </div>
@@ -429,8 +493,34 @@ footer a { color: var(--text-muted); }
     { key: "chaosMemory", name: "混沌回忆", color: "#38bdf8", hpKey: "hp" },
     { key: "pureFiction", name: "虚构叙事", color: "#a78bfa", hpKey: "hp" },
     { key: "apocalypticShadow", name: "末日幻影", color: "#f59e0b", hpKey: "hp" },
-    { key: "divergentArbitration", name: "异相仲裁", color: "#34d399", hpKey: "knights", subKeys: ["knights", "king", "kingAbyss"], subNames: ["三骑士总和", "王棋", "绝境王棋"] },
+    {
+      key: "divergentArbitration", name: "异相仲裁", color: "#34d399", hpKey: "knights",
+      // group 决定「哪几条画在同一张图」：
+      //   knights 单独成图（和混沌/虚构/末日一样只有一条线、一根自适应轴）
+      //   king 与 kingAbyss 同图，共用 Y 轴、互相参照
+      subs: [
+        { key: "knights",   name: "三骑士总和", short: "三骑士", color: "#34d399", group: "knights" },
+        { key: "king",      name: "王棋",       short: "王棋",   color: "#f59e0b", group: "king"    },
+        { key: "kingAbyss", name: "绝境王棋",   short: "绝境",   color: "#f4511e", group: "king"    },
+      ],
+    },
   ];
+
+  // 子指标辅助：配置里只维护一份 subs，避免「数组下标取色」在条数变化时错位
+  const subOf = (m, k) => ((m && m.subs) ? m.subs.find(s => s.key === k) : null) || null;
+  const defaultSub = m => ((m && m.subs && m.subs[0]) ? m.subs[0].key : null);
+  const subGroup = (m, k) => (subOf(m, k) || {}).group || null;
+  // 当前子指标所在分组 → 这一组要画的曲线（1 条或 2 条）
+  const groupSubs = (m, k) => {
+    const g = subGroup(m, k);
+    return (g && m.subs) ? m.subs.filter(s => s.group === g) : [];
+  };
+  // 绝境王棋 ÷ 王棋 倍数（同一期对比）
+  function abyssMult(item) {
+    const k = Number(item && item.king) || 0;
+    const a = Number(item && item.kingAbyss) || 0;
+    return (k > 0 && a > 0) ? a / k : null;
+  }
 
   const BG = "#0a0f1e";
   const TXT = "#e2e8f0";
@@ -457,6 +547,7 @@ footer a { color: var(--text-muted); }
   let currentStyle = {};       // 各曲线当前实际的透明度/线宽（作为下次过渡的起点）
   let subKeyChanged = false;   // 本次渲染是否发生了子指标高亮变化
   let lastSubKey = null;       // 上一次绘制的高亮子指标
+  let renderGen = 0;           // 渲染代际号：防止旧的补间定时器把已删除的 series 合并回图里
 
   function fmt(n) {
     if (n == null || !isFinite(n)) return "—";
@@ -508,13 +599,14 @@ footer a { color: var(--text-muted); }
         <div class="kpi-sub">
           <span>总膨胀 <b class="${mult >= 10 ? "up" : ""}">${mult.toFixed(2)}×</b></span>
           <span>最近环比 <b class="${rate === null ? "" : rate > 0 ? "up" : "down"}">${rate === null ? "—" : fmtPct(rate)}</b></span>
+          ${(card.sub === "kingAbyss" && abyssMult(last))
+            ? `<span>相对王棋 <b class="up">${abyssMult(last).toFixed(2)}×</b></span>` : ""}
         </div>`;
       el.addEventListener("click", () => {
         const mi = MODES.findIndex(m => m.key === card.modeKey);
         if (mi < 0) return;
-        if (activeMode !== mi) switchMode(mi);
-        if (card.sub && (activeSubKey || "knights") !== card.sub) selectSubKey(card.sub);
-        markActiveCard();
+        // 一次到位：避免「先重置子指标再切换」在同一帧 setOption 两次、把动画打断
+        switchMode(mi, card.sub || null);
       });
       (card.grid === "arb" ? g2 : g1).appendChild(el);
     });
@@ -527,7 +619,9 @@ footer a { color: var(--text-muted); }
       const card = CARDS[Number(el.dataset.cardIndex)];
       if (!card) return;
       const mi = MODES.findIndex(m => m.key === card.modeKey);
-      const subOk = card.sub ? (activeSubKey || "knights") === card.sub : true;
+      if (mi < 0) return;
+      const cur = activeSubKey || defaultSub(MODES[mi]);
+      const subOk = card.sub ? cur === card.sub : true;
       el.classList.toggle("active", mi === activeMode && subOk);
     });
   }
@@ -547,11 +641,11 @@ footer a { color: var(--text-muted); }
     renderSubTabs();
   }
 
-  // 异相仲裁子指标选择器（骑士/王棋/绝境王棋 分开分析）
+  // 异相仲裁子指标选择器（三骑士 / 王棋 / 绝境王棋 分开分析）
   function renderSubTabs() {
     let el = document.getElementById("sub-tabs");
     const m = MODES[activeMode];
-    if (!m.subKeys) {
+    if (!m.subs) {
       if (el) el.remove();
       return;
     }
@@ -563,14 +657,15 @@ footer a { color: var(--text-muted); }
       document.getElementById("main-tabs").after(el);
     }
     el.innerHTML = "";
-    m.subKeys.forEach((k, idx) => {
+    const cur = activeSubKey || defaultSub(m);
+    m.subs.forEach(s => {
       const t = document.createElement("div");
-      const active = (activeSubKey || m.subKeys[0]) === k;
+      const active = cur === s.key;
       t.className = "tab" + (active ? " active" : "");
-      t.style.setProperty("--mode-color", m.color);
+      t.style.setProperty("--mode-color", s.color);
       t.style.fontSize = "12px";
-      t.innerHTML = `<span class="tab-dot"></span>${m.subNames[idx]}`;
-      t.addEventListener("click", () => selectSubKey(k));
+      t.innerHTML = `<span class="tab-dot"></span>${s.name}`;
+      t.addEventListener("click", () => selectSubKey(s.key));
       el.appendChild(t);
     });
   }
@@ -587,10 +682,13 @@ footer a { color: var(--text-muted); }
     markActiveCard();
   }
 
-  function switchMode(i) {
-    if (activeMode === i && !activeSubKey) return;   // 重复点击同一玩法不重放动画
+  function switchMode(i, subKey) {
+    const m = MODES[i];
+    if (!m) return;
+    const next = m.subs ? (subKey || defaultSub(m)) : null;
+    if (activeMode === i && activeSubKey === next) return;   // 状态没变就不重放动画
     activeMode = i;
-    activeSubKey = null;
+    activeSubKey = next;
     renderTabs();
     renderMainChart();
     renderAnalyses();
@@ -602,8 +700,7 @@ footer a { color: var(--text-muted); }
   function currentSeries() {
     const m = MODES[activeMode];
     const arr = (DATA[m.key] || {}).data || [];
-    let key = m.hpKey;
-    if (m.subKeys) key = activeSubKey || m.subKeys[0];
+    const key = m.subs ? (activeSubKey || defaultSub(m)) : m.hpKey;
     return { mode: m, arr, key };
   }
 
@@ -624,10 +721,45 @@ footer a { color: var(--text-muted); }
     const el = document.getElementById("main-chart");
     if (!charts.main) {
       charts.main = echarts.init(el, null, { renderer: "canvas" });
-      // 点击数据点 → 查看该期怪物明细（只绑定一次，避免重复触发）
-      charts.main.on("click", p => {
-        if (p.componentType !== "series") return;
-        openDetail(p.dataIndex);
+      // 点击整列都能打开明细。
+      // 原来只监听 series 的 click，热区就是线本身（1.8–3.2px）和那个小圆点，
+      // 空白列完全点不中。这里改到 zr 层：先判断点是否落在绘图区，
+      // 再把像素坐标反算成 x 轴序号并四舍五入吸附到最近一期。
+      charts.main.getZr().on("click", e => {
+        const c = charts.main;
+        const pt = [e.offsetX, e.offsetY];
+
+        let inGrid = false;
+        try {
+          inGrid = c.containPixel({ gridIndex: 0 }, pt);
+        } catch (_) {
+          try {
+            const r = c.getModel().getComponent("grid", 0).coordinateSystem.getRect();
+            inGrid = pt[0] >= r.x && pt[0] <= r.x + r.width && pt[1] >= r.y && pt[1] <= r.y + r.height;
+          } catch (_2) {
+            inGrid = true;   // 两条兜底都失败就放行，避免彻底点不动
+          }
+        }
+        if (!inGrid) return;
+
+        const n = (currentSeries().arr || []).length;
+        if (!n) return;
+
+        let idx = NaN;
+        try {
+          const v = c.convertFromPixel({ xAxisIndex: 0 }, pt);
+          idx = Math.round(typeof v === "number" ? v : Number(v));
+        } catch (_) { idx = NaN; }
+
+        if (!isFinite(idx)) {
+          try {
+            const r = c.getModel().getComponent("grid", 0).coordinateSystem.getRect();
+            idx = Math.round(((pt[0] - r.x) / Math.max(1, r.width)) * (n - 1));
+          } catch (_2) { return; }
+        }
+
+        idx = Math.max(0, Math.min(n - 1, idx));   // 夹紧，避免最右边缘越界
+        openDetail(idx);
       });
     }
     const c = charts.main;
@@ -637,54 +769,45 @@ footer a { color: var(--text-muted); }
     const nameMap = {};
     arr.forEach(x => { nameMap[x.version || ""] = x.name || ""; });
 
-    const series = [];
-    if (mode.subKeys) {
-      const subColors = [mode.color, "#f59e0b", "#f4511e"];
-      const curKey = activeSubKey || mode.subKeys[0];
-      mode.subKeys.forEach((k, idx) => {
-        const isActive = k === curKey;
-        // 选中曲线高亮，其余暗下去
-        series.push({
-          id: k,               // 固定 id：切换指标时做形变过渡而非重建
-          name: mode.subNames[idx],
-          type: "line",
-          data: hpValues(arr, k),
-          smooth,
-          symbol: "circle",
-          symbolSize: isActive ? 7 : 4,
-          // 非高亮曲线不能压得太暗：0.22 时在深色底上几乎看不见
-          // （实测像素数 679 vs 高亮曲线 70470，差了两个数量级），
-          // 0.42 能保持「主次分明」的同时，让另外两条仍是可读的对照参考。
-          lineStyle: {
-            width: isActive ? 3.2 : 1.8,
-            color: subColors[idx],
-            opacity: isActive ? 1 : 0.42,
-          },
-          itemStyle: { color: subColors[idx], opacity: isActive ? 1 : 0.42 },
-          areaStyle: isActive ? { opacity: 0.12, color: subColors[idx] } : { opacity: 0 },
-          z: isActive ? 10 : 1,
-          emphasis: { focus: "series" },
-        });
-      });
+    // 决定这一屏画哪几条：
+    //   普通玩法 / 三骑士 → 1 条，统一用 id main_total（保证跨玩法形变动画不丢）
+    //   王棋 / 绝境王棋   → 2 条，各用自身 key 作 id，互相参照、共用一根 Y 轴
+    const curKey = mode.subs ? (activeSubKey || defaultSub(mode)) : mode.hpKey;
+    let draw;
+    if (!mode.subs) {
+      draw = [{ key: mode.hpKey, name: "总血量", color: mode.color, id: "main_total" }];
     } else {
-      series.push({
-        // 所有玩法的总血量曲线共用同一个固定 id：切换玩法时 ECharts 会把它当作
-        // 「同一条曲线的数据更新」，从而播放原生的形变动画（曲线保持可见、位置平滑移动）。
-        // 若 id 随玩法变化（如 chaosMemory_total → pureFiction_total），ECharts 会视为
-        // 两条不相干的曲线，旧的被删除、新的凭空出现，只能得到瞬变。
-        id: "main_total",
-        name: "总血量",
-        type: "line",
-        data: hpValues(arr, mode.hpKey),
-        smooth,
-        symbol: "circle",
-        symbolSize: 6,
-        lineStyle: { width: 2.5, color: mode.color },
-        itemStyle: { color: mode.color },
-        areaStyle: { opacity: 0.14, color: mode.color },
-        emphasis: { focus: "series" },
-      });
+      const list = groupSubs(mode, curKey);
+      draw = list.map(s => ({ ...s, id: list.length === 1 ? "main_total" : s.key }));
     }
+    const single = draw.length === 1;
+
+    const series = draw.map(s => {
+      if (single) {
+        // 单条：视觉与普通玩法完全一致（2.5px + 面积），
+        // 否则「三骑士」看起来比别的玩法更粗，像另一种状态。
+        return {
+          id: s.id, name: s.name, type: "line", data: hpValues(arr, s.key),
+          smooth, symbol: "circle", symbolSize: 6,
+          lineStyle: { width: 2.5, color: s.color },
+          itemStyle: { color: s.color },
+          areaStyle: { opacity: 0.14, color: s.color },
+          emphasis: { focus: "series" },
+        };
+      }
+      const on = s.key === curKey;
+      // 非高亮曲线不能压得太暗：0.22 时在深色底上几乎看不见
+      //（实测像素数 679 vs 高亮 70470），0.42 既主次分明又仍可读。
+      return {
+        id: s.id, name: s.name, type: "line", data: hpValues(arr, s.key),
+        smooth, symbol: "circle", symbolSize: on ? 7 : 4,
+        lineStyle: { width: on ? 3.2 : 1.8, color: s.color, opacity: on ? 1 : 0.42 },
+        itemStyle: { color: s.color, opacity: on ? 1 : 0.42 },
+        areaStyle: on ? { opacity: 0.12, color: s.color } : { opacity: 0 },
+        z: on ? 10 : 1,
+        emphasis: { focus: "series" },
+      };
+    });
 
     const animUpdate = {
       // 形变过渡：同一曲线在新旧数据间平滑移动
@@ -708,9 +831,14 @@ footer a { color: var(--text-muted); }
           if (!params || !params.length) return "";
           const v = params[0].axisValue;
           const nm = nameMap[v] || "";
+          const it = arr[params[0].dataIndex] || {};
+          const mult = abyssMult(it);
           let html = `<div style="font-weight:700;margin-bottom:4px;color:${mode.color}">${v}${nm ? " · " + nm : ""}</div>`;
           params.forEach(x => {
-            html += `<div style="margin-top:3px">${x.marker}<span style="color:${TXT}">${x.seriesName}: </span><b style="font-variant-numeric:tabular-nums">${fmt(x.value)}</b></div>`;
+            // 绝境王棋这一行顺带标出「相对王棋」的倍数，省得自己心算
+            const badge = (x.seriesName === "绝境王棋" && mult)
+              ? ` <span style="color:${MUTED}">（${mult.toFixed(2)}× 王棋）</span>` : "";
+            html += `<div style="margin-top:3px">${x.marker}<span style="color:${TXT}">${x.seriesName}: </span><b style="font-variant-numeric:tabular-nums">${fmt(x.value)}</b>${badge}</div>`;
           });
           return html;
         },
@@ -750,28 +878,29 @@ footer a { color: var(--text-muted); }
       },
     };
 
-    const isSubMode = !!mode.subKeys;
+    // 渲染代际号：切走时让上一次的补间定时器自行失效。
+    // 否则它仍在按 id 合并 series，可能把 replaceMerge 刚删掉的曲线重新加回图里，
+    // 表现为 320ms 内闪出一根幽灵线。
+    const gen = ++renderGen;
+    if (tweenTimer) { clearInterval(tweenTimer); tweenTimer = null; }
 
     // 统一走 ECharts 原生形变动画。
     //
     // 关键在于 series 的 id 保持稳定：
-    //   - 四种玩法共用同一个 id（main_total），切换玩法时 ECharts 视为
-    //     「同一条曲线的数据更新」，播放形变动画（曲线保持可见、位置平滑移动）；
-    //   - 异相仲裁三条曲线的 id 固定为 knights / king / kingAbyss，切换高亮时
-    //     同理得到形变 + 颜色/透明度过渡。
+    //   - 单曲线（含三骑士）统一用 main_total，跨玩法切换时 ECharts 视为
+    //     「同一条曲线的数据更新」，播放形变动画；
+    //   - 王棋 / 绝境王棋 两条线的 id 固定为 king / kingAbyss，切换高亮时
+    //     几何不变、只补间颜色与透明度。
     //
-    // 曾经用「旧曲线淡出 + 新曲线淡入」的自制交叉过渡，效果反而更差：
-    // 两条半透明曲线叠在同一位置，中间时刻两边都接近透明，曲线会「消失一下」，
-    // 观感比原生形变生硬得多。原生形变没有这个问题，且无需自行驱动动画。
+    // replaceMerge 只在「series 集合真的发生变化」时使用（1 条 ↔ 2 条）；
+    // 子指标同一分组内切换时 id 集合完全相同，带 replaceMerge 会把形变打断成瞬变。
     //
-    // replaceMerge 只在「series 集合真的发生变化」时使用：
-    //   - 玩法之间切换：曲线条数会变（1 条 ↔ 3 条），必须用 replaceMerge 重建集合；
-    //   - 子指标之间切换：id 集合完全相同（knights/king/kingAbyss），不需要重建 ——
-    //     带上 replaceMerge 会强制重建 series，反而把原生形变动画打断成瞬变。
-    // 判定子指标高亮是否变化（用于决定是否播放亮暗过渡）
-    const curActiveKey = mode.subKeys ? (activeSubKey || mode.subKeys[0]) : null;
-    subKeyChanged = isSubMode && lastSubKey !== null && lastSubKey !== curActiveKey;
-    lastSubKey = curActiveKey;
+    // 亮暗补间只在「同一分组内换高亮」时才有意义：king ↔ kingAbyss 几何完全相同；
+    // knights ↔ king 是 1 条 ↔ 2 条，根本没有可补间的几何，走 replaceMerge 重建。
+    const prevGroup = lastSubKey ? subGroup(mode, lastSubKey) : null;
+    const curGroup = subGroup(mode, curKey);
+    subKeyChanged = !!curGroup && prevGroup === curGroup && lastSubKey !== curKey;
+    lastSubKey = mode.subs ? curKey : null;
 
     const needReplace = series.length !== shownCount;
     const sameSet = !needReplace && series.map(s => s.id).join() === prevIds.join();
@@ -779,18 +908,17 @@ footer a { color: var(--text-muted); }
     prevIds = series.map(s => s.id);
 
     if (sameSet && subKeyChanged) {
-      // ---- 子指标切换：曲线几何完全相同，只是高亮对象变了 ----
-      // 此时 ECharts 的形变动画帮不上忙：三条曲线的数据没变、坐标没变，
-      // 没有「位置」可供补间，动画在视觉上等于没有。所以这里显式补间
-      // 不透明度与线宽（曲线全程可见，只是亮暗互换），几何仍由 ECharts 静态绘制。
-      tweenHighlight(c, series);
+      // ---- 同一分组内切换高亮：曲线几何完全相同，只是高亮对象变了 ----
+      // ECharts 的形变动画帮不上忙（数据没变、坐标没变），所以显式补间
+      // 不透明度与线宽，几何仍由 ECharts 静态绘制。
+      tweenHighlight(c, series, gen);
       renderLegend();
       return;
     }
 
     // 记录每条曲线「当前实际」的样式，作为下一次过渡的起点。
     // 必须在每次普通渲染后同步更新，否则首次进入某玩法时 currentStyle 为空，
-    // 过渡起点会退化成终点值，插值无变化 → 动画等于没播（曾出现该问题）。
+    // 过渡起点会退化成终点值，插值无变化 → 动画等于没播。
     syncCurrentStyle(series);
 
     c.setOption({ ...animUpdate, series }, needReplace ? { replaceMerge: ["series"] } : undefined);
@@ -812,7 +940,7 @@ footer a { color: var(--text-muted); }
 
   // 子指标切换的亮暗过渡：在同一条曲线上补间不透明度 / 线宽。
   // 不做「多画一条曲线」的交叉淡入淡出 —— 会叠加成半透明导致曲线中途变淡甚至消失。
-  function tweenHighlight(c, series) {
+  function tweenHighlight(c, series, gen) {
     if (tweenTimer) { clearInterval(tweenTimer); tweenTimer = null; }
     const from = { ...currentStyle };
     const to = {};
@@ -828,6 +956,9 @@ footer a { color: var(--text-muted); }
     const lerp = (a, b, t) => a + (b - a) * t;
 
     const tick = () => {
+      // 代际守卫：若已切到别的玩法/分组，这个定时器必须立刻失效，
+      // 否则它会继续按 id 合并 series，把 replaceMerge 删掉的曲线加回来。
+      if (gen !== renderGen) { clearInterval(tweenTimer); tweenTimer = null; return; }
       const t = Math.min(1, (performance.now() - startedAt) / DURATION);
       const e = ease(t);
       const frame = series.map(s => {
@@ -852,25 +983,34 @@ footer a { color: var(--text-muted); }
     tweenTimer = setInterval(tick, FRAME);
   }
 
-  // 图例：子指标模式下 ECharts 自带图例会混入淡出用的临时曲线，这里统一用自定义图例精确显示当前三条。
-  // 图例本身就是切换入口：每一项都可点击，点谁就高亮谁（等价于点上方的子指标 Tab）。
+  // 图例：只显示「当前这一组」的曲线。
+  // 单条（三骑士 / 普通玩法）不显示图例，与混沌回忆保持一致；
+  // 王棋 + 绝境王棋两条时显示两项，绝境那项后面附「×N」倍数。
+  // 图例本身就是切换入口：点谁就高亮谁（等价于点上方的子指标 Tab）。
   function renderLegend() {
     const el = document.getElementById("main-legend");
     if (!el) return;
-    const { mode } = currentSeries();
-    if (!mode.subKeys) { el.innerHTML = ""; el.style.display = "none"; return; }
+    const { mode, arr } = currentSeries();
+    if (!mode.subs) { el.innerHTML = ""; el.style.display = "none"; return; }
+
+    const curKey = activeSubKey || defaultSub(mode);
+    const list = groupSubs(mode, curKey);
+    if (list.length < 2) { el.innerHTML = ""; el.style.display = "none"; return; }
+
+    const last = arr[arr.length - 1] || {};
+    const mult = abyssMult(last);
     el.style.display = "flex";
-    const curKey = activeSubKey || mode.subKeys[0];
-    const colors = [mode.color, "#f59e0b", "#f4511e"];
-    el.innerHTML = mode.subKeys.map((k, i) => {
-      const on = k === curKey;
-      return `<span class="lg-item${on ? " on" : ""}" data-key="${k}" role="button" tabindex="0"` +
-             ` aria-pressed="${on}" title="点击只关注「${mode.subNames[i]}」">` +
-             `<i style="background:${colors[i]};opacity:${on ? 1 : 0.6}"></i>${mode.subNames[i]}</span>`;
+    el.innerHTML = list.map(s => {
+      const on = s.key === curKey;
+      const badge = (s.key === "kingAbyss" && mult)
+        ? `<b class="lg-mult">×${mult.toFixed(2)}</b>` : "";
+      return `<span class="lg-item${on ? " on" : ""}" data-key="${s.key}" role="button" tabindex="0"` +
+             ` aria-pressed="${on}" title="点击只关注「${s.name}」">` +
+             `<i style="background:${s.color};opacity:${on ? 1 : 0.6}"></i>${s.name}${badge}</span>`;
     }).join("");
 
     // 绑定点击/回车切换高亮。此前这里只重建了 innerHTML 而没有绑事件，
-    // 图例纯属装饰、点了没反应（用户只能靠上方的子指标 Tab 切换）。
+    // 图例纯属装饰、点了没反应。
     el.querySelectorAll(".lg-item").forEach(node => {
       const go = () => selectSubKey(node.dataset.key);
       node.addEventListener("click", go);
@@ -1187,28 +1327,55 @@ footer a { color: var(--text-muted); }
     return ((v / total) * 100).toFixed(1) + "%";
   }
 
+  // 贪饕等级用罗马数字显示（数据里仍是 1~4 的整数）
+  const ROMAN = ["", "I", "II", "III", "IV"];
+  const roman = n => ROMAN[Number(n)] || String(n);
+
   function monsterRow(m, waveTotal) {
     const tags = [];
     if (Number(m.phases) > 1) tags.push(`<span class="dl-tag ph">${m.phases} 阶段</span>`);
-    if (Number(m.inv) > 0) tags.push(`<span class="dl-tag">贪饕 ${m.inv}</span>`);
+    if (Number(m.inv) > 0) tags.push(`<span class="dl-tag">贪饕 ${roman(m.inv)}</span>`);
     const name = m.name || `(未知名 ${m.id})`;
-    return `<tr>
+
+    let html = `<tr class="dl-row">
       <td>${name}${tags.join("")}</td>
       <td class="num">${fmt(m.hp)}</td>
       <td class="num">${m.count || 1}</td>
       <td class="num">${fmt(m.contrib)}</td>
       <td class="num">${pctOf(m.contrib, waveTotal)}</td>
     </tr>`;
+
+    // 多阶段敌人：逐阶段列出（单只口径），是主行「单只血量」的分解而不是并列项
+    const ph = m.phaseHp || [];
+    if (ph.length > 1) {
+      ph.forEach((v, i) => {
+        html += `<tr class="dl-sub"><td class="sub">第 ${i + 1} 阶段</td>` +
+                `<td class="num">${fmt(v)}</td><td></td><td></td><td></td></tr>`;
+      });
+    }
+    // 贪饕血条：额外需要打掉的血量，单独一行并标红
+    const inv = Number(m.invHp || 0);
+    if (inv > 0) {
+      html += `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)} 额外</td>` +
+              `<td class="num">${fmt(inv)}</td><td></td><td></td><td></td></tr>`;
+    }
+    return html;
   }
 
   function waveTable(unit, unitTotal) {
     const waves = unit.waves || [];
-    if (!waves.length) return `<div class="dl-wave"><span class="dl-wave-head">该组暂无怪物数据</span></div>`;
+    if (!waves.length) {
+      return `<div class="dl-wave"><div class="dl-wave-head"><span class="lbl">该组暂无敌人数据</span></div></div>`;
+    }
     return waves.map(w => `
       <div class="dl-wave">
-        <div class="dl-wave-head">${w.label} · ${fmt(w.hp)} · 占本组 ${pctOf(w.hp, unitTotal)}</div>
+        <div class="dl-wave-head">
+          <span class="lbl">${w.label}</span>
+          <span class="total">${fmt(w.hp)}</span>
+          <span class="pct">占本组 ${pctOf(w.hp, unitTotal)}</span>
+        </div>
         <table class="dl-table">
-          <thead><tr><th>怪物</th><th class="num">单只血量</th><th class="num">只数</th><th class="num">计入</th><th class="num">占本波</th></tr></thead>
+          <thead><tr><th>敌人</th><th class="num">单只血量</th><th class="num">数量</th><th class="num">计入</th><th class="num">占本波</th></tr></thead>
           <tbody>${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</tbody>
         </table>
       </div>`).join("");
