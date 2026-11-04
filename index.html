@@ -399,10 +399,12 @@ table.dl-table {
   box-shadow: 0 0 0 1px rgba(244,81,30,0.18) inset;
 }
 .tp-tag { font-size: 12px; letter-spacing: .04em; color: var(--tp-color, #38BDF8); font-weight: 800; }
-.tp-ver { font-size: 20px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tp-ver { font-size: 22px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; color: var(--tp-color, #38BDF8); }
 .tp-name { font-size: 13px; color: #cbd5e1; margin-top: 2px; font-weight: 600; }
 .tp-num { font-size: 18px; font-weight: 800; margin-top: 7px; font-variant-numeric: tabular-nums; color: var(--tp-color, #38BDF8); }
 .tp-sub { font-size: 13px; color: var(--text); margin-top: 4px; font-variant-numeric: tabular-nums; }
+/* 副行里的关键数字同样着色，和版本号、总量形成同一套高亮 */
+.tp-sub b { color: var(--tp-color, #38BDF8); font-weight: 800; }
 /* 判定依据：每张卡都要能自己解释"为什么这一期被选中"——
    字号不能压到看不清，否则等于没写 */
 .tp-basis {
@@ -1407,7 +1409,8 @@ footer a { color: var(--text-muted); }
 
     const cards = [];
     let peakIdx = -1;                 // 无失控点时记录峰值位置，用于去重
-    const RED = "#F4511E", ORANGE = "#F59E0B", BLUE = "#38BDF8", GREEN = "#16A34A";
+    // 绿色在深底上对比度偏低，取亮一档的 #22C55E，版本号用绿色时才看得清
+    const RED = "#F4511E", ORANGE = "#F59E0B", BLUE = "#38BDF8", GREEN = "#22C55E";
 
     // 趋势拐点（增速发生结构性变化的那一期）
     if (segOk) {
@@ -1437,7 +1440,7 @@ footer a { color: var(--text-muted); }
         ver: arr[runaway].version,
         name: arr[runaway].name,
         num: fmt(vals[runaway]),
-        sub: `相对首期 ${(vals[runaway] / vals[0]).toFixed(2)}× · 此后再未回落`,
+        sub: `相对首期 <b>${(vals[runaway] / vals[0]).toFixed(2)}×</b> · 此后再未回落`,
         basis: `这一期环比 <b>${signedPct(prevRate(rates, runaway))}</b>，` +
                `此后最低仍达 <b>${fmt(minAfter)}</b>`,
       }));
@@ -1452,7 +1455,7 @@ footer a { color: var(--text-muted); }
           ver: arr[peak].version,
           name: arr[peak].name,
           num: fmt(vals[peak]),
-          sub: `当前 ${fmt(now)} · 为峰值的 ${(now / vals[peak] * 100).toFixed(0)}%`,
+          sub: `当前 <b>${fmt(now)}</b> · 为峰值的 <b>${(now / vals[peak] * 100).toFixed(0)}%</b>`,
           basis: `峰值之后未再回到该水平，全程无"失控"特征`,
         }));
       }
@@ -1475,7 +1478,7 @@ footer a { color: var(--text-muted); }
           ver: arr[s.i + 1].version,
           name: arr[s.i + 1].name,
           num: fmt(vals[s.i + 1]),
-          sub: `环比 +${(s.rate * 100).toFixed(1)}% · 相对首期 ${(vals[s.i + 1] / vals[0]).toFixed(2)}×`,
+          sub: `环比 <b>+${(s.rate * 100).toFixed(1)}%</b> · 相对首期 <b>${(vals[s.i + 1] / vals[0]).toFixed(2)}×</b>`,
           basis: `高于本品类 90% 分位（+${(p90 * 100).toFixed(1)}%），常态中位数 ${signedPct(med)}`,
         }));
       });
