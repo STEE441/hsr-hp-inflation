@@ -185,6 +185,9 @@ table.dl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .modal-mask { padding: 0; }
   .modal-panel { width: 100%; max-height: 100dvh; height: 100dvh; border-radius: 0; border: none; }
   .dl-table th, .dl-table td { padding: 4px 5px; font-size: 11px; }
+  /* 窄屏优先保住「怪物 / 单只 / 只数 / 计入」，占比可自行用计入÷波次推算 */
+  .dl-table th:nth-child(5), .dl-table td:nth-child(5) { display: none; }
+  .dl-table td:first-child { white-space: normal; }
 }
 
 /* ---------- Section ---------- */
