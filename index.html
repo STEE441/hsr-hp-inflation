@@ -158,42 +158,57 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
   display: flex; align-items: flex-start; gap: 12px;
   padding: 16px 18px; border-bottom: 1px solid var(--border);
 }
-.modal-title { font-size: 16px; font-weight: 800; }
-.modal-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.modal-title { font-size: 19px; font-weight: 800; }
+.modal-sub { font-size: 13px; color: var(--text-muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
 .modal-close {
   margin-left: auto; flex: none; background: transparent; border: 1px solid var(--border);
   color: var(--text-muted); width: 30px; height: 30px; border-radius: 8px;
   font-size: 18px; line-height: 1; cursor: pointer;
 }
 .modal-close:hover { color: var(--text); border-color: var(--border-strong); }
-.modal-body { padding: 14px 18px 22px; overflow: auto; }
-.dl-group { margin-bottom: 20px; }
+.modal-body { padding: 16px 18px 24px; overflow: auto; }
+.dl-group { margin-bottom: 22px; }
 .dl-group-head {
   display: flex; align-items: baseline; gap: 10px;
-  font-size: 15px; font-weight: 800; margin-bottom: 10px;
-  padding-bottom: 7px; border-bottom: 1px dashed var(--border);
+  font-size: 17px; font-weight: 800; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px dashed var(--border);
 }
-.dl-group-head .pct { font-size: 12px; color: var(--text-dim); font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; }
+.dl-group-head .pct { font-size: 13px; color: var(--text-dim); font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* 关卡小标题：三骑士里的「骑士 1 / 骑士 2 / 骑士 3」 */
+.dl-unit {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 16px 0 8px;
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.dl-unit::before {
+  content: ""; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--border-strong); flex: none; transform: translateY(2px);
+}
+.dl-unit .u-hp {
+  margin-left: auto; font-size: 13px; font-weight: 500;
+  color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
 
 /* 波次头：做成一条醒目的汇总条，总量字号明显大于表体 */
 .dl-wave { margin: 14px 0 16px; }
 .dl-wave-head {
   display: flex; align-items: baseline; gap: 10px;
-  padding: 8px 10px; margin-bottom: 2px;
+  padding: 9px 12px; margin-bottom: 2px;
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.10), transparent);
   border-left: 3px solid var(--accent); border-radius: 6px 6px 0 0;
   font-variant-numeric: tabular-nums;
 }
-.dl-wave-head .lbl { font-size: 12px; font-weight: 700; color: var(--text-muted); }
-.dl-wave-head .total { font-size: 17px; font-weight: 800; color: var(--text); }
-.dl-wave-head .pct { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+.dl-wave-head .lbl { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.dl-wave-head .total { font-size: 19px; font-weight: 800; color: var(--text); }
+.dl-wave-head .pct { margin-left: auto; font-size: 13px; color: var(--text-dim); }
 
 /* 表格：固定列宽，保证每个波次的列都对齐 */
 table.dl-table {
-  width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px;
+  width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px;
 }
 .dl-table th, .dl-table td {
-  padding: 7px 10px; text-align: left; vertical-align: middle; line-height: 1.45;
+  padding: 8px 10px; text-align: left; vertical-align: middle; line-height: 1.5;
 }
 /* 第 1 列敌人 / 2 单只血量 / 3 数量 / 4 计入 / 5 占本波 */
 .dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 32%; }
@@ -204,7 +219,7 @@ table.dl-table {
 
 /* 明细里的表头必须回到普通流：全局 thead th 是 sticky，多个波次叠起来会糊成一团 */
 .dl-table thead th {
-  font-size: 12px; color: var(--text-dim); font-weight: 600;
+  font-size: 13px; color: var(--text-dim); font-weight: 600;
   position: static; background: transparent;
   border-bottom: 1px solid var(--border); white-space: nowrap;
 }
@@ -214,18 +229,18 @@ table.dl-table {
 
 /* 阶段 / 贪饕副行：主行的分项分解，不参与「计入」列的汇总 */
 .dl-sub td {
-  padding: 3px 10px; font-size: 12px; color: var(--text-muted);
+  padding: 4px 10px; font-size: 13px; color: var(--text-muted);
   background: rgba(148, 163, 184, 0.045); border: none;
 }
-.dl-sub td.sub { padding-left: 28px; position: relative; }
+.dl-sub td.sub { padding-left: 30px; position: relative; }
 .dl-sub td.sub::before {
-  content: "└"; position: absolute; left: 12px; color: var(--border-strong);
+  content: "└"; position: absolute; left: 13px; color: var(--border-strong);
 }
 .dl-sub.inv td { color: var(--warn); background: rgba(244, 81, 30, 0.06); }
 .dl-sub:last-child td { border-bottom: 1px solid rgba(30, 41, 59, 0.55); }
 
 .dl-tag {
-  display: inline-block; font-size: 10px; padding: 0 5px; border-radius: 4px;
+  display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
   margin-left: 6px; vertical-align: 1px;
   background: rgba(244, 81, 30, 0.14); color: var(--warn); border: 1px solid rgba(244, 81, 30, 0.3);
 }
@@ -1337,42 +1352,54 @@ footer a { color: var(--text-muted); }
     if (Number(m.inv) > 0) tags.push(`<span class="dl-tag">贪饕 ${roman(m.inv)}</span>`);
     const name = m.name || `(未知名 ${m.id})`;
 
+    const inv = Number(m.invHp || 0);
+    const ph = m.phaseHp || [];
+    // 主行只显示「本体」：多阶段时是各阶段之和，单阶段时是 hp 减去贪饕部分
+    const body = ph.length ? ph.reduce((a, b) => a + b, 0) : Math.max(0, (m.hp || 0) - inv);
+
+    // 计入按本体/贪饕的比例分摊，两行加起来仍等于原来的那一行计入
+    const contrib = Number(m.contrib || 0);
+    const hpAll = Number(m.hp || 0);
+    const invShare = (hpAll > 0 && inv > 0) ? Math.round(contrib * inv / hpAll) : 0;
+    const bodyShare = contrib - invShare;
+
     let html = `<tr class="dl-row">
       <td>${name}${tags.join("")}</td>
-      <td class="num">${fmt(m.hp)}</td>
+      <td class="num">${fmt(body)}</td>
       <td class="num">${m.count || 1}</td>
-      <td class="num">${fmt(m.contrib)}</td>
-      <td class="num">${pctOf(m.contrib, waveTotal)}</td>
+      <td class="num">${fmt(bodyShare)}</td>
+      <td class="num">${pctOf(bodyShare, waveTotal)}</td>
     </tr>`;
 
-    // 多阶段敌人：逐阶段列出（单只口径），是主行「单只血量」的分解而不是并列项
-    const ph = m.phaseHp || [];
+    // 多阶段敌人：逐阶段列出，是「本体」的分解
     if (ph.length > 1) {
       ph.forEach((v, i) => {
         html += `<tr class="dl-sub"><td class="sub">第 ${i + 1} 阶段</td>` +
                 `<td class="num">${fmt(v)}</td><td></td><td></td><td></td></tr>`;
       });
     }
-    // 贪饕血条：额外需要打掉的血量，单独一行并标红
-    const inv = Number(m.invHp || 0);
+    // 贪饕血条：额外需要打掉的那部分，单独一行
     if (inv > 0) {
-      html += `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)} 额外</td>` +
-              `<td class="num">${fmt(inv)}</td><td></td><td></td><td></td></tr>`;
+      html += `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)}</td>` +
+              `<td class="num">${fmt(inv)}</td><td></td>` +
+              `<td class="num">${fmt(invShare)}</td>` +
+              `<td class="num">${pctOf(invShare, waveTotal)}</td></tr>`;
     }
     return html;
   }
 
-  function waveTable(unit, unitTotal) {
+  function waveTable(unit, unitTotal, scopeLabel) {
+    const scope = scopeLabel || "占本组";
     const waves = unit.waves || [];
     if (!waves.length) {
       return `<div class="dl-wave"><div class="dl-wave-head"><span class="lbl">该组暂无敌人数据</span></div></div>`;
     }
-    return waves.map(w => `
+    return waves.map((w, i) => `
       <div class="dl-wave">
         <div class="dl-wave-head">
-          <span class="lbl">${w.label}</span>
+          <span class="lbl" title="${w.label}">波次 ${i + 1}</span>
           <span class="total">${fmt(w.hp)}</span>
-          <span class="pct">占本组 ${pctOf(w.hp, unitTotal)}</span>
+          <span class="pct">${scope} ${pctOf(w.hp, unitTotal)}</span>
         </div>
         <table class="dl-table">
           <thead><tr><th>敌人</th><th class="num">单只血量</th><th class="num">数量</th><th class="num">计入</th><th class="num">占本波</th></tr></thead>
@@ -1396,14 +1423,33 @@ footer a { color: var(--text-muted); }
     }
 
     const total = d.total || 0;
-    const groups = d.groups || d.lanes || [];
-    subEl.textContent = `${mode.name} · 合计 ${fmt(total)} · ${groups.length} 组 · 数据包 ${DATA.meta.dataVersion}`;
+    const allGroups = d.groups || d.lanes || [];
 
-    body.innerHTML = groups.map(g => `
-      <div class="dl-group">
+    // 异相仲裁：只显示「当前选中的那个指标」。
+    // 点三骑士就只看三骑士，王棋和绝境不再混在同一页里。
+    let groups = allGroups;
+    if (d.groups && mode.subs) {
+      const key = activeSubKey || defaultSub(mode);
+      const hit = allGroups.filter(g => g.key === key);
+      if (hit.length) groups = hit;
+    }
+
+    subEl.textContent = (groups.length === 1)
+      ? `${mode.name} · ${groups[0].label} ${fmt(groups[0].hp)} · 占本期 ${pctOf(groups[0].hp, total)}`
+      : `${mode.name} · 合计 ${fmt(total)} · ${groups.length} 组 · 数据包 ${DATA.meta.dataVersion}`;
+
+    body.innerHTML = groups.map(g => {
+      const units = g.units || [g];
+      const multi = units.length > 1;   // 三骑士要区分骑士 1/2/3
+      return `<div class="dl-group">
         <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)} · 占本期 ${pctOf(g.hp, total)}</span></div>
-        ${(g.units || [g]).map(u => waveTable(u, g.hp)).join("")}
-      </div>`).join("");
+        ${units.map(u => `
+          ${multi ? `<div class="dl-unit"><span class="u-name">${u.label}</span>` +
+                    `<span class="u-hp">${fmt(u.hp)} · 占本期 ${pctOf(u.hp, total)}</span></div>` : ""}
+          ${waveTable(u, multi ? u.hp : g.hp, multi ? "占本关" : "占本组")}
+        `).join("")}
+      </div>`;
+    }).join("");
   }
 
   async function openDetail(index) {
