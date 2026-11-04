@@ -11,10 +11,17 @@
   - 异相仲裁   (peak, /peak)
 
 血量公式（与站点源码一致）：
-  怪物HP = HPBase × HPModifyRatio × 精英组HPRatio × 等级HPRatio × Σ(阶段倍率)
+  怪物本体HP = HPBase × HPModifyRatio × 精英组HPRatio × 等级HPRatio × Σ(阶段倍率)
   - 普通战斗用 EliteGroup.json 的 HPRatio
   - 无限刷怪战斗用 InfiniteEliteGroup.json 的 HPRatio
   - Boss 多阶段乘以 PhaseList 各 phase_max_hp_ratio 之和
+
+贪饕侵蚀（invasion）：
+  怪物本体被打死后会额外出现一条「贪饕血条」，按等级取不同的初始上限，
+  且玩家对它造成伤害时，当前血量按上限的 2 倍速度下降
+  （1 点伤害 = 当前血量 -2、最大生命上限 -1）。
+  因此站点原来那种 `hp × (1 + maze_buff_param[1])` 的写法是错的，见下方
+  INVASION_* 常量与 invasion_extra_damage() 的完整说明。
 """
 
 import json
@@ -33,6 +40,111 @@ SESSION.headers.update({"User-Agent": UA})
 
 # 每个玩法抓取用到的参考数据（懒加载缓存）
 _cache = {}
+
+
+# ---------------------------------------------------------------------------
+# 贪饕侵蚀（invasion）模型
+# ---------------------------------------------------------------------------
+# 机制（依据游戏内实测，2026-10 校准）：
+#   1. 怪物本体被打死后并不会消失，而是进入「贪饕血条」状态，获得一条额外的血条。
+#   2. 贪饕血条的初始最大生命：
+#        - 单阶段一条命的怪：本体总血量 × k
+#        - 多阶段多条命的怪：最后一阶段血量 × k
+#   3. 玩家对贪饕血条造成伤害时，会同时扣除「当前血量」与「最大生命上限」，
+#      且当前血量的下降速度是上限的 2 倍：
+#        1 点伤害 = 扣 2 点当前血量 + 扣 1 点最大生命上限。
+#      例：贪饕条 100/100，打 5 点伤害 → 上限 95、当前 90。
+#      因此打空当前血量需要 M/2 点伤害，打完后上限恰好剩 M/2。
+#   4. 只有当「贪饕血条归零」且「此刻的最大生命上限已低于初始上限的 θ」时，
+#      怪物才会被彻底消灭；否则贪饕条会直接回满到当前的最大生命上限，循环下去。
+#
+# 由 2/3/4 可以推出「打空一条 M 的贪饕条」需要 M/2 点伤害，
+# 且打完后最大生命也恰好降到 M/2。于是轮次完全由 θ 决定：
+#   θ = 0.60 → 0.5 < 0.6，一轮打死           → 消耗 0.500 × M0
+#   θ = 0.40 → 0.5 未达标，二轮 0.25 < 0.4    → 消耗 0.750 × M0
+#   θ = 0.23 → 0.5、0.25 连续未达标，三轮 0.125 → 消耗 0.875 × M0
+#
+# 站点要展示的是「通关所需的总伤害」，因此：
+#   最终血量 = 本体血量（各阶段之和） + 贪饕条等效伤害（消耗比例 × M0）
+# ---------------------------------------------------------------------------
+
+# 贪饕等级（invasion.level，直接取上游数字，不做任何偏移）→ 贪饕血条初始上限系数
+# 注：终局玩法实际只会出现 2/3/4 级（1 级为理论预留，保留以便将来上游启用）。
+INVASION_K_SINGLE = {1: 0.20, 2: 0.40, 3: 0.80, 4: 1.20}   # 单阶段：本体血量 × k
+INVASION_K_MULTI = {1: 0.40, 2: 0.72, 3: 1.44, 4: 1.80}    # 多阶段：最后一阶段血量 × k
+
+# 贪饕等级 → 彻底消灭所需的「最大生命 / 初始上限」阈值
+INVASION_THRESHOLD = {1: 0.60, 2: 0.60, 3: 0.40, 4: 0.23}
+
+# 「哪些怪带贪饕」的唯一判据：上游 event.invasion.monster_list 里标记的怪物 ID。
+# 不在名单里的怪，即使同场、即使长得像，也一律视为无贪饕（不做任何推断兜底）。
+# 因此末日幻影那种「名单列配套精英、stage 只出场 BOSS」的结构会自然落到「无贪饕」，
+# 这是符合预期的结果，不是 bug。
+
+
+def invasion_spent(level):
+    """打空一条贪饕血条需要消耗的等效伤害（以初始上限 M0 为单位）。
+
+    返回 (消耗比例, 轮数)。例如 3 级 → (0.75, 2)，表示要打穿两条。
+    """
+    th = INVASION_THRESHOLD.get(level)
+    if th is None:
+        return 0.0, 0
+    m = 1.0       # 当前最大生命 / M0
+    spent = 0.0   # 已消耗伤害 / M0
+    rounds = 0
+    while True:
+        d = m / 2.0      # 打空当前血量所需伤害：每点伤害扣 2 点进度
+        spent += d
+        m -= d           # 最大生命同步流失，打完后恰好减半
+        rounds += 1
+        if m < th:       # 归零时上限已低于阈值 → 彻底消灭
+            break
+        # 未达标：贪饕条回满到当前上限，继续下一轮
+        if rounds >= 10:   # 防御性上限，正常永不到达
+            break
+    return spent, rounds
+
+
+# ---------------------------------------------------------------------------
+# BOSS 阶段比例修正（上游 monstervalue 的 PhaseList 与游戏内实测不符时用）
+# ---------------------------------------------------------------------------
+# key = monstervalue 键（怪物 ID 前 7 位）
+#   ratios       : 各阶段血条比例，取代上游 PhaseList
+#   phase1_scale : 实测第一阶段 / 上游算出第一阶段 的修正系数（上游基础值偏低时用）
+PHASE_OVERRIDE = {
+    # 亚婆离：上游 MaxMonsterPhase / PhaseList 均为空（按单阶段处理），
+    # 但游戏内实测是两条血，第二条 = 第一条 × 2。
+    "5034010": {
+        "ratios": [1.0, 2.0],
+        "phase1_scale": 1.0,
+        "note": "亚婆离 2 阶段，实测比例 1:2",
+    },
+    # 归寂：上游 PhaseList = [1.0, 1.0, 1.9]（和 3.9），与实测不符。
+    # 实测三阶段 16,768,365 / 20,122,038 / 27,667,802，比例精确为 1 : 1.2 : 1.65。
+    # phase1_scale 保持 1.0：上游 child 801503006 的 HPModifyRatio=0.375 已经能精确
+    # 还原实测第一阶段（14880 × 0.375 × 6.2 × 484.690862 = 16,768,365），
+    # 再加任何缩放都会重复放大（曾误乘 8/7，导致三阶段总值虚高 12.5%）。
+    "8015030": {
+        "ratios": [1.0, 1.2, 1.65],
+        "phase1_scale": 1.0,
+        "note": "归寂 3 阶段，实测比例 1:1.2:1.65",
+    },
+}
+
+
+def resolve_phases(mv_key, mv):
+    """返回 (各阶段比例列表, 第一阶段修正系数)。
+
+    优先使用 PHASE_OVERRIDE 的实测比例，否则用上游 PhaseList。
+    """
+    ov = PHASE_OVERRIDE.get(str(mv_key))
+    if ov:
+        return [float(x) for x in ov["ratios"]], float(ov.get("phase1_scale", 1.0))
+    phase = (mv or {}).get("PhaseList") or []
+    ratios = [float(p.get("phase_max_hp_ratio", 1) or 1) for p in phase]
+    return (ratios if ratios else [1.0]), 1.0
+
 
 
 def fetch_json(url, retries=3, timeout=60):
@@ -113,10 +225,11 @@ def build_lookup_tables(ver):
     }
 
 
-def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_ratio=0.0):
-    """计算单个怪物血量
+def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
+    """计算单个怪物的「通关所需总血量」= 本体各阶段之和 + 贪饕血条等效伤害
+
     - infinite_bonus: 无限刷怪波次 param_list[1] 血量加成
-    - invasion_ratio: 贪饕污染 maze_buff_param[1] 血量加成（仅污染怪物）
+    - invasion_level: 贪饕侵蚀等级（1~4），0 表示未被侵蚀
     """
     key = str(mid)[:7]  # 怪物 ID 取前 7 位作为 monstervalue 键
     mv = tables["monstervalue"].get(key)
@@ -158,15 +271,34 @@ def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, in
     # 无限刷怪波次的血量加成：×(1 + param_list[1])（虚构叙事等玩法）
     hp *= 1.0 + float(infinite_bonus or 0)
 
-    # Boss 多阶段
-    phase = mv.get("PhaseList")
-    if phase:
-        hp *= sum(float(p.get("phase_max_hp_ratio", 1) or 1) for p in phase)
+    # Boss 多阶段：各阶段血条比例之和（PHASE_OVERRIDE 可覆盖上游配错的情况）
+    ratios, phase1_scale = resolve_phases(key, mv)
+    ratios = [r * phase1_scale for r in ratios]
+    hp_last_phase = hp * ratios[-1]          # 最后一阶段血量（多阶段贪饕血条的基准）
+    hp *= sum(ratios)                        # 本体总血量 = 各阶段之和
 
-    # 贪饕污染血量加成：×(1 + maze_buff_param[1])（仅被污染怪物）
-    hp *= 1.0 + float(invasion_ratio or 0)
+    # 贪饕侵蚀：本体打死后多一条贪饕血条，按等级追加「等效消耗伤害」
+    if invasion_level:
+        hp += invasion_extra_damage(hp, hp_last_phase, len(ratios), invasion_level)
 
     return hp
+
+
+def invasion_extra_damage(hp_body, hp_last_phase, phase_count, level):
+    """贪饕侵蚀额外需要造成的伤害（等效血量）。
+
+    - 单阶段怪：贪饕条初始上限 M0 = 本体血量 × INVASION_K_SINGLE[level]
+    - 多阶段怪：贪饕条初始上限 M0 = 最后一阶段血量 × INVASION_K_MULTI[level]
+    再乘以打空所需的消耗比例（见 invasion_spent）。
+    """
+    multi = phase_count > 1
+    k = (INVASION_K_MULTI if multi else INVASION_K_SINGLE).get(level)
+    if not k:
+        return 0.0
+    m0 = (hp_last_phase if multi else hp_body) * k
+    spent, _ = invasion_spent(level)
+    return m0 * spent
+
 
 
 def clean_text(s):
@@ -449,25 +581,50 @@ def wave_hp_bonus(wave):
 
 
 def parse_invasion(event):
-    """解析贪饕污染：返回 (被污染怪物ID集合, 血量加成比例 maze_buff_param[1])"""
+    """解析贪饕侵蚀：返回 (被侵蚀怪物ID集合, 侵蚀等级 1~4)。
+
+    等级直接取 invasion.level。上游每个 event 的 invasion 对象自成一体
+    （自带 maze_buff_param 与 monster_list），因此这里天然是「该 event 的等级」。
+    注意：旧版曾把 level 忽略、改用 maze_buff_param[1] 当加成系数，那是错的——
+    maze_buff_param[1] 只是旧口径的百分比，与贪饕血条机制无关。
+    """
     inv = event.get("invasion")
     if not inv:
-        return set(), 0.0
-    ratio = float((inv.get("maze_buff_param") or [0, 0])[1] or 0)
+        return set(), 0
+
+    lv = inv.get("level")
+    if isinstance(lv, (list, tuple)):
+        raise RuntimeError(f"invasion.level 变成多值 {lv}，贪饕分级逻辑需重新实现")
+    try:
+        level = int(lv) if lv is not None else 0
+    except (TypeError, ValueError):
+        level = 0
+
     polluted = {m.get("monster_id") for m in inv.get("monster_list", []) if m.get("monster_id")}
-    return polluted, ratio
+
+    # 等级缺失但确实配了侵蚀：不能静默按 0 处理（会悄悄少算一大截血量），
+    # 宁可让抓取失败、保留旧数据。
+    if level <= 0 and inv.get("monster_list"):
+        raise RuntimeError(
+            f"event(stage_id={event.get('stage_id')}) 有 invasion.monster_list 但 level={lv!r}，"
+            f"无法确定贪饕等级"
+        )
+    if level > 4:
+        raise RuntimeError(f"贪饕等级 {level} 超出已知范围(1~4)，系数表需补充")
+
+    return polluted, level
 
 
 def event_total_hp(event, tables, is_infinite=False):
-    """计算一个 event 的怪物总血量（含贪饕污染加成）"""
-    polluted, inv_ratio = parse_invasion(event)
+    """计算一个 event 的怪物总血量（含贪饕侵蚀）"""
+    polluted, inv_level = parse_invasion(event)
     eg = event.get("elite_group", 0)
     hg = event.get("hard_level_group", 0)
     lv = event.get("level", 0)
     total = 0.0
     for mid in event_monster_ids(event):
-        r = inv_ratio if mid in polluted else 0.0
-        total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_ratio=r)
+        lvl = inv_level if mid in polluted else 0
+        total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=is_infinite, invasion_level=lvl)
     return total
 
 
@@ -490,8 +647,8 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables):
     hg = ev.get("hard_level_group", 0) or 0
     lv = ev.get("level", 0) or 0
 
-    # 贪饕污染（invasion 在 event 层级，作用于整路所有波次）
-    polluted, inv_ratio = parse_invasion(ev)
+    # 贪饕侵蚀（invasion 在 event 层级，作用于整路所有波次）
+    polluted, inv_level = parse_invasion(ev)
 
     total = 0.0
     for i, wave in enumerate(waves):
@@ -504,8 +661,8 @@ def calc_pf_lane_hp(ev_list, inf_list, source, tables):
         for mid in ids:
             if monster_name(mid, tables) == "虚构集合体":
                 continue
-            r = inv_ratio if mid in polluted else 0.0
-            hp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_ratio=r)
+            r = inv_level if mid in polluted else 0
+            hp = calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
             entries.append((mid, hp))
 
         if not entries:
@@ -606,8 +763,8 @@ def fetch_divergent_arbitration(ver, tables, live_versions):
 
 
 def peak_event_hp(event, inf_list, tables):
-    """异相仲裁单个 event 的血量（无限刷怪用 infinite_list，含贪饕污染）"""
-    polluted, inv_ratio = parse_invasion(event)
+    """异相仲裁单个 event 的血量（无限刷怪用 infinite_list，含贪饕侵蚀）"""
+    polluted, inv_level = parse_invasion(event)
     if isinstance(inf_list, dict) and inf_list:
         # 用 infinite_list 的 monster_group_id_list（完整刷怪序列）
         total = 0.0
@@ -619,8 +776,8 @@ def peak_event_hp(event, inf_list, tables):
             eg = wave.get("elite_group", 0)
             bonus = wave_hp_bonus(wave)
             for mid in wave.get("monster_group_id_list", []):
-                r = inv_ratio if mid in polluted else 0.0
-                total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_ratio=r)
+                r = inv_level if mid in polluted else 0
+                total += calc_monster_hp(mid, eg, hg, lv, tables, is_infinite=True, infinite_bonus=bonus, invasion_level=r)
         return total
     else:
         # 普通 event
