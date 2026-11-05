@@ -787,7 +787,9 @@ footer a { color: var(--text-muted); }
   let activeMode = 0;
   let activeSubKey = null; // 异相仲裁的子指标（knights/king/kingAbyss）
   let logY = false;
-  let smooth = true;
+  // 平滑默认关闭：折线忠实反映「每期一个点」的数据，平滑会在两点之间画出
+  // 并不存在的过渡，容易让人误读成中间版本也有对应血量。需要时手动点「平滑」。
+  let smooth = false;
   const charts = {};
   // 上一次渲染的 series 条数：用于判断是否需要 replaceMerge 重建 series 集合
   let shownCount = -1;
@@ -1724,7 +1726,7 @@ footer a { color: var(--text-muted); }
     const narrow = window.innerWidth < 700;
     const series = MODES.map(m => {
       const arr = (DATA[m.key] || {}).data || [];
-      return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth: true, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
+      return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
     });
     charts.compare.setOption({
       backgroundColor: "transparent",
@@ -2133,9 +2135,13 @@ footer a { color: var(--text-muted); }
     logY = !logY; e.target.classList.toggle("active", logY); renderMainChart();
   });
   document.getElementById("btn-smooth").addEventListener("click", (e) => {
-    smooth = !smooth; e.target.classList.toggle("active", smooth); renderMainChart(); renderAnalyses();
+    smooth = !smooth;
+    e.target.classList.toggle("active", smooth);
+    // 归一化对比图也跟随这个开关，否则同一个页面里一半折线一半平滑，观感割裂
+    renderMainChart(); renderAnalyses(); renderCompare();
   });
-  document.getElementById("btn-smooth").classList.add("active");
+  // 初始态与 smooth 变量保持一致（默认关闭，按钮不高亮）
+  document.getElementById("btn-smooth").classList.toggle("active", smooth);
 
   // 窗口 resize
   window.addEventListener("resize", () => {
