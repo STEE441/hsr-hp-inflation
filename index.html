@@ -202,24 +202,41 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
   padding: 16px 18px; border-bottom: 1px solid var(--border);
 }
 .modal-title { font-size: 19px; font-weight: 800; }
-/* 明细副标题：这一页的总血量是读者最先要找的东西，单独放大并用主题色 */
+/* 明细副标题：这一页的总血量是读者最先要找的东西，单独框起来放大并用主题色 */
 .modal-sub {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;
   margin-top: 6px; font-size: 13px; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+/* 行内所有文字统一「离底边 4px」，数字框把同样的 4px 计入自己的下内边距。
+   这样不论字号、位数怎么变，数字与左侧文字的视觉底部都落在同一条线上；
+   早先用 baseline 对齐，14px 文字的 1.6 行高会在基线下多留 2px，看着就是数字偏高。 */
+.modal-sub > * { padding-bottom: 4px; }
 .modal-sub .ms-mode { font-weight: 700; }
 .modal-sub .ms-label { font-size: 14px; font-weight: 800; color: var(--text); }
-/* 完整数字比「2.7562 亿」长得多，字号不能再大：26px + 等宽数字，
-   底部与左侧 14px 文字共用同一条基线，视觉上才不歪 */
+
+/* 总血量的「数值框」：宽度由内容决定（inline-flex + nowrap），
+   位数变多变少都会自然伸缩，不写死宽度也不会溢出换行。 */
+.modal-sub .ms-total {
+  display: inline-flex; align-items: baseline; justify-content: flex-end;
+  margin-left: 16px;
+  padding: 2px 14px 4px;
+  border-radius: 10px;
+  background: linear-gradient(160deg,
+    var(--dl-accent-soft, rgba(56, 189, 248, 0.20)),
+    var(--dl-accent-faint, rgba(56, 189, 248, 0.055)));
+  border: 1px solid var(--dl-accent-line, rgba(56, 189, 248, 0.5));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  max-width: 100%;
+}
 .modal-sub .ms-hp {
-  font-size: 26px; font-weight: 800; line-height: 1.1;
+  font-size: 26px; font-weight: 800; line-height: 1.15;
   color: var(--dl-accent, #38bdf8); letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .modal-sub .ms-pct {
   font-size: 14px; font-weight: 700; color: var(--text);
-  padding: 1px 8px; border-radius: 999px;
+  padding: 1px 8px 3px; border-radius: 999px;
   background: var(--dl-accent-soft, rgba(56, 189, 248, 0.18));
  }
 .modal-sub .ms-sep { opacity: 0.4; }
@@ -363,9 +380,10 @@ table.dl-table {
   .dl-group-head .pct small::before, .dl-stage-head .pct small::before { margin-right: 4px; }
   .dl-group-note { font-size: 12px; }
   .dl-group-note .pct { font-size: 12px; }
-  /* 完整数字在 375px 下会换行，缩到 21px 让「全部 3 组 275,619,836」同排 */
-  .modal-sub .ms-hp { font-size: 21px; }
+  /* 完整数字在 375px 下会换行，缩到 20px 并收紧数值框，让「全部 3 组 275,619,836」同排 */
+  .modal-sub .ms-hp { font-size: 20px; }
   .modal-sub .ms-label { font-size: 13px; }
+  .modal-sub .ms-total { margin-left: 10px; padding: 1px 9px 3px; border-radius: 8px; }
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
@@ -916,6 +934,34 @@ footer a { color: var(--text-muted); }
     return arr.map(x => x[key] || 0);
   }
 
+  // 把像素 x 吸附到最近一期。返回 null 表示当前坐标系不可用，由调用方兜底。
+  //
+  // 不用 convertFromPixel 反算，原因有两条，都会造成「点 A 期却打开 B 期」：
+  //   1. 给单轴 finder 传 [x, y] 这种数组点，ECharts 会直接返回 null，
+  //      于是主路径每次都被跳过、实际一直走兜底公式；
+  //   2. 兜底公式假设各点均匀铺满整个绘图区宽度（i / (n-1)），
+  //      但主图是 boundaryGap: true 的分类轴，点在「格子中心」，
+  //      换算出来的序号在末端会差一格（px=1426 正确是 4.7，算出来 20.14 → 20 → 4.6）。
+  //
+  // 直接取每个数据点的像素位置再比距离，与图上的圆点、悬停浮标完全一致，
+  // 也不受 boundaryGap、对数轴、多曲线条数影响。
+  function nearestIndexByX(chart, px, n) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < n; i++) {
+      let p;
+      try {
+        p = chart.convertToPixel({ xAxisIndex: 0 }, i);
+      } catch (_) {
+        return null;
+      }
+      if (Array.isArray(p)) p = p[0];
+      if (!isFinite(p)) return null;
+      const d = Math.abs(p - px);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return isFinite(bestD) ? best : null;
+  }
+
   // ---------- 主图 ----------
 
   function renderMainChart() {
@@ -926,7 +972,7 @@ footer a { color: var(--text-muted); }
       // 点击整列都能打开明细。
       // 原来只监听 series 的 click，热区就是线本身（1.8–3.2px）和那个小圆点，
       // 空白列完全点不中。这里改到 zr 层：先判断点是否落在绘图区，
-      // 再把像素坐标反算成 x 轴序号并四舍五入吸附到最近一期。
+      // 再吸附到横向距离最近的那一期。
       charts.main.getZr().on("click", e => {
         const c = charts.main;
         const pt = [e.offsetX, e.offsetY];
@@ -947,16 +993,16 @@ footer a { color: var(--text-muted); }
         const n = (currentSeries().arr || []).length;
         if (!n) return;
 
-        let idx = NaN;
-        try {
-          const v = c.convertFromPixel({ xAxisIndex: 0 }, pt);
-          idx = Math.round(typeof v === "number" ? v : Number(v));
-        } catch (_) { idx = NaN; }
+        // 主路径：按数据点的实际像素位置取最近
+        let idx = nearestIndexByX(c, pt[0], n);
 
-        if (!isFinite(idx)) {
+        // 兜底：坐标系取不到像素时，按「格子」归属而不是按「铺满宽度」换算。
+        // floor 才是分类轴 boundaryGap: true 的正确语义；用 round((px/w)*(n-1))
+        // 会在末端差一格，正是「点 4.7 打开 4.6」的来源。
+        if (idx === null) {
           try {
             const r = c.getModel().getComponent("grid", 0).coordinateSystem.getRect();
-            idx = Math.round(((pt[0] - r.x) / Math.max(1, r.width)) * (n - 1));
+            idx = Math.floor((pt[0] - r.x) / Math.max(1e-6, r.width / n));
           } catch (_2) { return; }
         }
 
@@ -1919,17 +1965,18 @@ footer a { color: var(--text-muted); }
     // 所以这一模式不显示"占本期 X%"；混沌 / 虚构 / 末日仍保留（同一期内的路占比有意义）。
     const hideShare = mode.key === "divergentArbitration";
 
-    // 副标题里把总血量单独拎出来放大：它是打开这一页后第一眼要找的数字。
-    // 这里用完整数字 + 千分位，而不是「2.7562 亿」——核对明细时需要逐位对得上。
+    // 副标题里把总血量单独框起来放大：它是打开这一页后第一眼要找的数字。
+    // 用完整数字 + 千分位，而不是「2.7562 亿」——核对明细时需要逐位对得上。
     const full = n => Math.round(Number(n) || 0).toLocaleString("en-US");
+    const boxed = n => `<span class="ms-total"><b class="ms-hp">${full(n)}</b></span>`;
     subEl.innerHTML = (groups.length === 1)
       ? `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">${groups[0].label}</span>` +
-        `<b class="ms-hp">${full(groups[0].hp)}</b>` +
+        boxed(groups[0].hp) +
         (hideShare ? "" : `<span class="ms-pct">占本期 ${pctOf(groups[0].hp, total)}</span>`)
       : `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">全部 ${groups.length} 组</span>` +
-        `<b class="ms-hp">${full(total)}</b>`;
+        boxed(total);
 
     // 明细的主题色跟随当前玩法：混沌蓝 / 虚构紫 / 末日橙 / 异相绿。
     // 只用一种蓝会让「关卡 / 波次 / 数字」糊成一片；分色后每种玩法自己一套层次。
