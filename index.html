@@ -20,10 +20,8 @@
   --accent: #38bdf8;
   --warn: #f4511e;
   --ok: #16a34a;
-  --c-chaos: #38bdf8;
-  --c-fiction: #a78bfa;
-  --c-shadow: #f59e0b;
-  --c-arb: #34d399;
+  /* 玩法色由 applyPalette() 在运行时写入（单一来源：JS 的 PALETTE）。
+     想改颜色只改 PALETTE 一处，CSS 里全部读 --m-* 变量。 */
   --glow: 0 0 24px rgba(56, 189, 248, 0.12);
   --radius: 14px;
   /* 以下四项供两套主题共用：分隔线、提示框底、表格行线、背景光晕 */
@@ -54,10 +52,6 @@
   --accent: #0369a1;
   --warn: #c2410c;
   --ok: #15803d;
-  --c-chaos: #0369a1;
-  --c-fiction: #6d28d9;
-  --c-shadow: #b45309;
-  --c-arb: #047857;
   --glow: 0 0 20px rgba(3, 105, 161, 0.10);
   --split: rgba(148, 163, 184, 0.35);
   --tip-bg: rgba(255, 255, 255, 0.98);
@@ -98,7 +92,7 @@ header {
 .brand { display: flex; align-items: center; gap: 14px; }
 .logo {
   width: 42px; height: 42px; border-radius: 12px;
-  background: linear-gradient(135deg, #38bdf8, #a78bfa);
+  background: linear-gradient(135deg, var(--m-chaos, #38bdf8), var(--m-fiction, #a78bfa));
   display: grid; place-items: center;
   font-weight: 800; font-size: 20px; color: #0a0f1e;
   box-shadow: var(--glow);
@@ -164,15 +158,15 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .kpi-group-title {
   display: inline-flex; align-items: center; gap: 9px;
   font-size: 15px; font-weight: 800; letter-spacing: 0.5px;
-  color: #34d399;
+  color: var(--m-arb, #34d399);
 }
 .kpi-group-title::before {
   content: ""; width: 4px; height: 16px; border-radius: 2px;
-  background: linear-gradient(180deg, #34d399, #38bdf8);
+  background: linear-gradient(180deg, var(--m-arb, #34d399), var(--m-chaos, #38bdf8));
 }
 .kpi-group-head::after {
   content: ""; flex: 1; height: 1px;
-  background: linear-gradient(90deg, rgba(52, 211, 153, 0.35), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--m-arb, #34d399) 35%, transparent), transparent);
 }
 /* 卡片可点击，激活态跟随当前玩法/子指标 */
 .kpi-card { cursor: pointer; }
@@ -182,45 +176,56 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 }
 .kpi-card.active .kpi-name { color: var(--mode-color); }
 
-/* 绝境王棋：贴边的红色内光晕 + 一圈外发光，营造「危险」氛围。
-   径向渐变让红光只压在边缘一圈（中心 40% 完全透明），再加内阴影做描边，
-   文字区始终落在透明带里，可读性不受影响；颜色取自 --mode-color，
-   深色/浅色两套主题自动跟随。 */
+/* 绝境王棋：不外溢的内嵌警示。
+   上一版用外发光 + 边缘径向雾，光晕会糊到相邻卡片和分组标题上，已弃用。
+   现在全部收在卡片内部：
+     ① 顶部色条由实心红改成「红 → 暗红」渐变；
+     ② 内侧 1px 同色描边（box-shadow inset，不占布局、不外溢）；
+     ③ 底部一条 2px「血条」，左实右渐隐，缓慢呼吸；
+     ④ 圆点呼吸发光（原本就有点，只是加了节奏）。
+   所有颜色取 --mode-color，两套主题自动跟随。 */
 .kpi-card.kpi-danger {
-  border-color: color-mix(in srgb, var(--mode-color) 55%, var(--border));
-  box-shadow: 0 0 18px -6px color-mix(in srgb, var(--mode-color) 70%, transparent),
-              0 6px 22px rgba(0, 0, 0, 0.35);
+  border-color: color-mix(in srgb, var(--mode-color) 45%, var(--border));
 }
 .kpi-card.kpi-danger.active {
   border-color: var(--mode-color);
-  box-shadow: 0 0 0 1px var(--mode-color),
-              0 0 26px -4px color-mix(in srgb, var(--mode-color) 80%, transparent),
-              0 6px 22px rgba(0, 0, 0, 0.35);
+}
+.kpi-card.kpi-danger::before {
+  background: linear-gradient(90deg,
+    var(--mode-color) 0%,
+    color-mix(in srgb, var(--mode-color) 55%, #000) 100%);
 }
 .kpi-card.kpi-danger::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(112% 104% at 50% 52%,
-    transparent 40%,
-    color-mix(in srgb, var(--mode-color) 14%, transparent) 72%,
-    color-mix(in srgb, var(--mode-color) 40%, transparent) 100%);
-  box-shadow: inset 0 0 26px color-mix(in srgb, var(--mode-color) 30%, transparent);
-  animation: dangerBreath 3.8s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-color) 30%, transparent);
+  /* 底部一条 4px 警示带：45° 斜纹（红 / 淡红交替），右端渐隐到卡片底色。
+     全部在卡片内部，不会像外发光那样糊到相邻卡片。 */
+  background-image:
+    linear-gradient(90deg, transparent 52%, var(--bg-card) 96%),
+    repeating-linear-gradient(45deg,
+      var(--mode-color) 0 3px,
+      color-mix(in srgb, var(--mode-color) 22%, transparent) 3px 7px);
+  background-size: 100% 4px, 100% 4px;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  animation: dangerBar 3.6s ease-in-out infinite;
 }
-@keyframes dangerBreath {
-  0%, 100% { opacity: 0.7; }
+@keyframes dangerBar {
+  0%, 100% { opacity: 0.60; }
   50%      { opacity: 1; }
 }
-/* 浅色底上同样强度会发粉，收一档 */
-:root[data-theme="light"] .kpi-card.kpi-danger::after {
-  background: radial-gradient(112% 104% at 50% 52%,
-    transparent 46%,
-    color-mix(in srgb, var(--mode-color) 10%, transparent) 76%,
-    color-mix(in srgb, var(--mode-color) 24%, transparent) 100%);
-  box-shadow: inset 0 0 20px color-mix(in srgb, var(--mode-color) 18%, transparent);
+.kpi-card.kpi-danger .kpi-dot {
+  animation: dangerDot 3.6s ease-in-out infinite;
+}
+@keyframes dangerDot {
+  0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--mode-color) 65%, transparent); }
+  50%      { box-shadow: 0 0 15px var(--mode-color); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .kpi-card.kpi-danger::after { animation: none; opacity: 0.85; }
+  .kpi-card.kpi-danger::after,
+  .kpi-card.kpi-danger .kpi-dot { animation: none; }
+  .kpi-card.kpi-danger::after { opacity: 0.85; }
 }
 
 /* ---------- 怪物明细弹层 ---------- */
@@ -436,7 +441,7 @@ table.dl-table {
   font-size: 16px; font-weight: 800; margin-bottom: 14px;
   display: flex; align-items: center; gap: 10px;
 }
-.section-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: linear-gradient(180deg, #38bdf8, #a78bfa); }
+.section-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: linear-gradient(180deg, var(--m-chaos, #38bdf8), var(--m-fiction, #a78bfa)); }
 .card {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 18px;
@@ -724,7 +729,7 @@ footer a { color: var(--text-muted); }
   const MODES = [
     { key: "chaosMemory", name: "混沌回忆", color: "#38bdf8", hpKey: "hp" },
     { key: "pureFiction", name: "虚构叙事", color: "#a78bfa", hpKey: "hp" },
-    { key: "apocalypticShadow", name: "末日幻影", color: "#f59e0b", hpKey: "hp" },
+    { key: "apocalypticShadow", name: "末日幻影", color: "#facc15", hpKey: "hp" },
     {
       key: "divergentArbitration", name: "异相仲裁", color: "#34d399", hpKey: "knights",
       // group 决定「哪几条画在同一张图」：
@@ -826,7 +831,7 @@ footer a { color: var(--text-muted); }
   const CARDS = [
     { modeKey: "chaosMemory",          label: "混沌回忆", hpKey: "hp",        sub: null,        color: "#38bdf8", grid: "main" },
     { modeKey: "pureFiction",          label: "虚构叙事", hpKey: "hp",        sub: null,        color: "#a78bfa", grid: "main" },
-    { modeKey: "apocalypticShadow",    label: "末日幻影", hpKey: "hp",        sub: null,        color: "#f59e0b", grid: "main" },
+    { modeKey: "apocalypticShadow",    label: "末日幻影", hpKey: "hp",        sub: null,        color: "#facc15", grid: "main" },
     { modeKey: "divergentArbitration", label: "三骑士",   hpKey: "knights",   sub: "knights",   color: "#34d399", grid: "arb"  },
     { modeKey: "divergentArbitration", label: "王棋",     hpKey: "king",      sub: "king",      color: "#fb923c", grid: "arb"  },
     { modeKey: "divergentArbitration", label: "绝境王棋", hpKey: "kingAbyss", sub: "kingAbyss", color: "#ef4444", grid: "arb"  },
@@ -2141,14 +2146,25 @@ footer a { color: var(--text-muted); }
   // 深底上的亮色（#38bdf8 / #34d399）放到白底上几乎看不见，所以不是单纯换背景：
   // 玩法色也换一套同色相的深色，保证两种主题下都够对比。
   const PALETTE = {
-    // king / abyss 是一组「危险度递进」的暖色：王棋浅橙红 → 绝境鲜红 → 更深。
-    // 早先 king 与 shadow 都是 #f59e0b，两张卡并排几乎分不出来。
-    dark:  { chaos: "#38bdf8", fiction: "#a78bfa", shadow: "#f59e0b", arb: "#34d399", king: "#fb923c", abyss: "#ef4444" },
-    light: { chaos: "#0369a1", fiction: "#6d28d9", shadow: "#b45309", arb: "#047857", king: "#ea580c", abyss: "#b91c1c" },
+    // 两套主题用「同一色相、浅色深两档」，切主题时只是明暗变化，色感不变。
+    // 浅色值都保证在白底上 ≥3:1（大号数字够用），黄/橙这类本来就亮的颜色最深。
+    // king / abyss 是一组「危险度递进」的暖色：王棋浅橙红 → 绝境红。
+    dark:  { chaos: "#38bdf8", fiction: "#a78bfa", shadow: "#facc15", arb: "#34d399", king: "#fb923c", abyss: "#ef4444" },
+    light: { chaos: "#0284c7", fiction: "#7c3aed", shadow: "#b8860b", arb: "#059669", king: "#ea580c", abyss: "#dc2626" },
   };
 
   function applyPalette(theme) {
     const p = PALETTE[theme] || PALETTE.dark;
+    // 同步写一份到 :root，供 CSS 里的品牌渐变、分组标题、危险卡使用，
+    // 这样「玩法色」只有 PALETTE 一个来源，不会出现 CSS 写死一套、JS 又一套。
+    const root = document.documentElement.style;
+    root.setProperty("--m-chaos", p.chaos);
+    root.setProperty("--m-fiction", p.fiction);
+    root.setProperty("--m-shadow", p.shadow);
+    root.setProperty("--m-arb", p.arb);
+    root.setProperty("--m-king", p.king);
+    root.setProperty("--m-abyss", p.abyss);
+
     const byKey = { chaosMemory: p.chaos, pureFiction: p.fiction, apocalypticShadow: p.shadow };
     MODES.forEach(m => {
       if (byKey[m.key]) m.color = byKey[m.key];
