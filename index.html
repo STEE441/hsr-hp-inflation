@@ -35,6 +35,7 @@
   --shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.6);
   --btn-bg: rgba(15, 23, 42, 0.85);
   --mask: rgba(4, 8, 18, 0.82);
+  --axis-text: #cbd5e1;
 }
 
 /* ---------- 日间模式 ----------
@@ -66,6 +67,7 @@
   --shadow-modal: 0 24px 70px rgba(15, 23, 42, 0.22);
   --btn-bg: rgba(255, 255, 255, 0.92);
   --mask: rgba(15, 23, 42, 0.30);
+  --axis-text: #334155;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -701,8 +703,8 @@ footer a { color: var(--text-muted); }
     DIM = cssVar("--text-dim", "#64748b");
     BORDER = cssVar("--border", "#1e293b");
     TIP_BG = cssVar("--tip-bg", "rgba(15,23,42,0.95)");
-    // 刻度文字原先用 DIM(#64748b) + 11px，在深底上偏灰偏小，改成 MUTED + 12px
-    axisStyle = { color: MUTED, fontSize: 12 };
+    // 刻度文字：DIM 11px → 专用 --axis-text 13px。仍比正文暗一档，但不再发灰
+    axisStyle = { color: cssVar("--axis-text", "#cbd5e1"), fontSize: 13 };
     splitLine = { lineStyle: { color: cssVar("--split", "rgba(30,41,59,0.6)") } };
   }
   refreshChartColors();
@@ -726,8 +728,17 @@ footer a { color: var(--text-muted); }
   let lastSubKey = null;       // 上一次绘制的高亮子指标
   let renderGen = 0;           // 渲染代际号：防止旧的补间定时器把已删除的 series 合并回图里
 
+  // 亿级保留 4 位：2 位时「1.04 亿」实际可能是 1.0356~1.0444，差出近千万，
+  // 核对明细时对不上。万级维持 2 位（1 万 = 0.01 精度已够）。
   function fmt(n) {
     if (n == null || !isFinite(n)) return "—";
+    if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(4) + " 亿";
+    if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + " 万";
+    return Math.round(n).toLocaleString();
+  }
+  // 坐标轴刻度例外：4 位小数会把轴标签撑得很长，挤掉绘图区，这里仍用 2 位
+  function fmtAxis(n) {
+    if (n == null || !isFinite(n)) return "";
     if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + " 亿";
     if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + " 万";
     return Math.round(n).toLocaleString();
@@ -1009,7 +1020,7 @@ footer a { color: var(--text-muted); }
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: TIP_BG,
+        backgroundColor: TIP_BG, extraCssText: "z-index:100;",
         borderColor: BORDER,
         textStyle: { color: TXT, fontSize: 12 },
         formatter: (params) => {
@@ -1057,7 +1068,7 @@ footer a { color: var(--text-muted); }
           // 给刻度标签留出固定宽度：fmt() 会输出「5000.00 万」这类较长的文本，
           // 不设 margin 时会顶到网格左边界之外（曾出现标签越出图表的观感问题）。
           margin: 10,
-          formatter: v => fmt(v),
+          formatter: v => fmtAxis(v),
         },
         splitLine,
       },
@@ -1270,7 +1281,7 @@ footer a { color: var(--text-muted); }
     const rateChart = ensureChart("chart-rate");
     rateChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
       grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
@@ -1289,7 +1300,7 @@ footer a { color: var(--text-muted); }
     const multiChart = ensureChart("chart-multi");
     multiChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
       grid: { left: 10, right: 14, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: axisStyle, splitLine },
@@ -1313,11 +1324,11 @@ footer a { color: var(--text-muted); }
     const fitBadge = bestR2 < 0.3 ? "fit-none" : (bestIsExp ? "fit-exp" : "fit-lin");
     fitChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmt(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmt(v) },
       legend: { top: 0, textStyle: { color: MUTED, fontSize: 11 } },
       grid: { left: 10, right: 14, top: 34, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
-      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmt(v) }, splitLine },
+      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtAxis(v) }, splitLine },
       series: [
         { name: "实际", type: "line", data: vals, symbol: "circle", symbolSize: 5, lineStyle: { color: mode.color, width: 2 }, itemStyle: { color: mode.color } },
         { name: "指数拟合", type: "line", data: expPred, lineStyle: { type: "dashed", color: "#f4511e", width: 1.5 }, itemStyle: { color: "#f4511e" }, symbol: "none" },
@@ -1339,7 +1350,7 @@ footer a { color: var(--text-muted); }
     const accelChart = ensureChart("chart-accel");
     accelChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
       grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
@@ -1619,11 +1630,11 @@ footer a { color: var(--text-muted); }
     });
     charts.compare.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
       legend: { top: 0, itemGap: narrow ? 10 : 16, textStyle: { color: MUTED, fontSize: narrow ? 11 : 12 } },
       grid: { left: 56, right: 24, top: narrow ? 64 : 46, bottom: 8, containLabel: true },
       xAxis: { type: "category", axisLabel: { show: false }, axisLine: { lineStyle: { color: BORDER } } },
-      yAxis: { type: "value", name: narrow ? "" : "相对倍数", nameTextStyle: { color: MUTED, fontSize: 12 }, axisLabel: { ...axisStyle, margin: 10 }, splitLine },
+      yAxis: { type: "value", name: narrow ? "" : "相对倍数", nameTextStyle: { color: cssVar("--axis-text", "#cbd5e1"), fontSize: 13 }, axisLabel: { ...axisStyle, margin: 10 }, splitLine },
       series,
       animationDuration: 500,
     }, true);
@@ -1676,15 +1687,33 @@ footer a { color: var(--text-muted); }
     const modes = SERIES.map(m => {
       const arr = (DATA[m.key] || {}).data || [];
       const vals = arr.map(p => Number(p[m.hpKey] || 0));
+      const majors = arr.map(p => String(p.version || "").split(".")[0]);
       const n = vals.length;
       const all = (n >= 2 && vals[0] > 0 && vals[n - 1] > 0)
         ? { rate: Math.pow(vals[n - 1] / vals[0], 1 / (n - 1)) - 1, n, mult: vals[n - 1] / vals[0] }
         : null;
-      return { name: m.name, inCombo: m.inCombo, rates: majorRates(arr, m.hpKey), all };
+      return { name: m.name, inCombo: m.inCombo, rates: majorRates(arr, m.hpKey), all, vals, majors };
     });
 
     const majors = [...new Set(modes.flatMap(m => Object.keys(m.rates)))]
       .sort((a, b) => Number(a) - Number(b));
+
+    // 段间跳变：分段平均只统计「段内相邻期」，但版本交界那一步（如 3.8 → 4.0）
+    // 不属于任何一段，却计入全程。所以全程平均完全可能高于每一段——
+    // 三骑士就是典型：3.X +5.31%、4.X +8.63%，全程却是 +10.82%，
+    // 因为交界处那一步是 +38.4%。这里取绝对值最大的一条写进说明，避免读者以为算错。
+    const allJumps = modes.map(m => {
+      let worst = null;
+      for (let i = 1; i < m.vals.length; i++) {
+        if (m.majors[i] === m.majors[i - 1] || !(m.vals[i - 1] > 0)) continue;
+        const r = m.vals[i] / m.vals[i - 1] - 1;
+        if (!worst || Math.abs(r) > Math.abs(worst.r)) worst = { r, name: m.name };
+      }
+      return worst;
+    }).filter(Boolean);
+    // 优先用三骑士举例：它只有两段，最容易被「分段都低、全程反而高」搞混
+    const crossJump = allJumps.find(j => j.name === "三骑士")
+      || allJumps.sort((a, b) => Math.abs(b.r) - Math.abs(a.r))[0];
 
     // 综合：四个玩法按期数加权（异相取三骑士）。期数多的玩法在样本里占比更大，等权会失真。
     const combo = (major) => {
@@ -1733,7 +1762,10 @@ footer a { color: var(--text-muted); }
         六个指标里最快 <b>${fast ? fast.name + " " + pct(fast.all.rate) + "/期" : "—"}</b>，
         最慢 <b>${slow ? slow.name + " " + pct(slow.all.rate) + "/期" : "—"}</b>；
         版本段中 <b>${hot.k}.X</b> 最猛（<b>${pct(hot.r)}/期</b>），<b>${cold.k}.X</b> 最缓（<b>${pct(cold.r)}/期</b>）。
-        悬停单元格可见该段期数与累计倍数。${pending.length
+        悬停单元格可见该段期数与累计倍数。${crossJump
+          ? `<br>注：分段平均只含段内相邻期，版本交界那一步不计入任何一段（当前最大的交界跳变是
+             <b>${crossJump.name} ${(crossJump.r >= 0 ? "+" : "") + (crossJump.r * 100).toFixed(1)}%</b>），但它计入全程，所以全程平均可能高于每一段，两者不是加权关系。`
+          : ""}${pending.length
           ? `<br><b>${pending.map(k => k + ".X").join("、")}</b> 目前只有 1 期，增速要两个点才能算，出现第二个小版本后会自动补上。`
           : ""}
       </div>
@@ -1877,12 +1909,16 @@ footer a { color: var(--text-muted); }
       if (hit.length) groups = hit;
     }
 
+    // 异相仲裁的三项（三骑士 / 王棋 / 绝境王棋）是三个独立关卡，互不构成"本期总量"，
+    // 所以这一模式不显示"占本期 X%"；混沌 / 虚构 / 末日仍保留（同一期内的路占比有意义）。
+    const hideShare = mode.key === "divergentArbitration";
+
     // 副标题里把总血量单独拎出来放大：它是打开这一页后第一眼要找的数字
     subEl.innerHTML = (groups.length === 1)
       ? `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">${groups[0].label}</span>` +
         `<b class="ms-hp">${fmt(groups[0].hp)}</b>` +
-        `<span class="ms-pct">占本期 ${pctOf(groups[0].hp, total)}</span>`
+        (hideShare ? "" : `<span class="ms-pct">占本期 ${pctOf(groups[0].hp, total)}</span>`)
       : `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">全部 ${groups.length} 组</span>` +
         `<b class="ms-hp">${fmt(total)}</b>` +
@@ -1906,7 +1942,7 @@ footer a { color: var(--text-muted); }
       if (!multi) {
         const u = units[0] || g;
         return `<div class="dl-group">
-          <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)}<small>占本期 ${pctOf(g.hp, total)}</small></span></div>
+          <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)}${hideShare ? "" : `<small>占本期 ${pctOf(g.hp, total)}</small>`}</span></div>
           ${waveTable(u, g.hp, "占本组")}
         </div>`;
       }
@@ -1914,9 +1950,9 @@ footer a { color: var(--text-muted); }
       // 三骑士：组标题降为一行说明（它只是"包含三个关卡"的容器，不是具体关卡），
       // 每个骑士升级为一级色带，与「第 1 路」逐像素一致。
       return `<div class="dl-group">
-        <div class="dl-group-note">${g.label}（${units.length} 个关卡）<span class="pct">合计 ${fmt(g.hp)} · 占本期 ${pctOf(g.hp, total)}</span></div>
+        <div class="dl-group-note">${g.label}（${units.length} 个关卡）<span class="pct">合计 ${fmt(g.hp)}</span></div>
         ${units.map(u => `<div class="dl-stage">
-            <div class="dl-stage-head">${u.label}<span class="pct">${fmt(u.hp)}<small>占本期 ${pctOf(u.hp, total)}</small></span></div>
+            <div class="dl-stage-head">${u.label}<span class="pct">${fmt(u.hp)}</span></div>
             ${waveTable(u, u.hp, "占本关")}
           </div>`).join("")}
       </div>`;
@@ -1928,8 +1964,17 @@ footer a { color: var(--text-muted); }
     const item = arr[index];
     if (!item) return;
 
+    // 触屏上手势会留下 ECharts 的 tooltip 浮标，它的 z-index 高于弹层，
+    // 弹层打开后仍浮在图上挡视线。两道处理：
+    //   ① tooltip 统一压到 z-index:100（见各图配置），从层级上就不会盖过弹层；
+    //   ② 打开 / 关闭时各收一次，避免离开图表后浮标还挂着。
+    hideChartTip();
+
     const mask = document.getElementById("detail-modal");
     mask.hidden = false;
+    // 触摸的 click 处理在 zr 上和 ECharts 自己的 tooltip 逻辑同源，
+    // 顺序不保证，等一帧再收一次兜底。
+    setTimeout(hideChartTip, 80);
     document.getElementById("detail-title").textContent = `${item.version || item.seasonId} · ${item.name || ""}`;
     document.getElementById("detail-sub").textContent = `${mode.name} · 正在加载明细…`;
     document.getElementById("detail-body").innerHTML = `<div class="dl-loading">加载中…</div>`;
@@ -1947,8 +1992,17 @@ footer a { color: var(--text-muted); }
     }
   }
 
+  // 收掉所有图表上残留的 tooltip 浮标（触屏点击后它会一直挂着）
+  function hideChartTip() {
+    if (charts.main) charts.main.dispatchAction({ type: "hideTip" });
+    Object.keys(charts).forEach(k => {
+      if (k !== "main" && charts[k]) { try { charts[k].dispatchAction({ type: "hideTip" }); } catch (e) { /* 忽略 */ } }
+    });
+  }
+
   function closeDetail() {
     document.getElementById("detail-modal").hidden = true;
+    hideChartTip();     // 关闭后回到图表，也不该留着上一条的浮标
   }
 
   document.getElementById("detail-close").addEventListener("click", closeDetail);
