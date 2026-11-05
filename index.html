@@ -210,9 +210,12 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 }
 .modal-sub .ms-mode { font-weight: 700; }
 .modal-sub .ms-label { font-size: 14px; font-weight: 800; color: var(--text); }
+/* 完整数字比「2.7562 亿」长得多，字号不能再大：26px + 等宽数字，
+   底部与左侧 14px 文字共用同一条基线，视觉上才不歪 */
 .modal-sub .ms-hp {
-  font-size: 24px; font-weight: 800; line-height: 1.1;
+  font-size: 26px; font-weight: 800; line-height: 1.1;
   color: var(--dl-accent, #38bdf8); letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 .modal-sub .ms-pct {
   font-size: 14px; font-weight: 700; color: var(--text);
@@ -360,6 +363,9 @@ table.dl-table {
   .dl-group-head .pct small::before, .dl-stage-head .pct small::before { margin-right: 4px; }
   .dl-group-note { font-size: 12px; }
   .dl-group-note .pct { font-size: 12px; }
+  /* 完整数字在 375px 下会换行，缩到 21px 让「全部 3 组 275,619,836」同排 */
+  .modal-sub .ms-hp { font-size: 21px; }
+  .modal-sub .ms-label { font-size: 13px; }
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
@@ -1913,16 +1919,17 @@ footer a { color: var(--text-muted); }
     // 所以这一模式不显示"占本期 X%"；混沌 / 虚构 / 末日仍保留（同一期内的路占比有意义）。
     const hideShare = mode.key === "divergentArbitration";
 
-    // 副标题里把总血量单独拎出来放大：它是打开这一页后第一眼要找的数字
+    // 副标题里把总血量单独拎出来放大：它是打开这一页后第一眼要找的数字。
+    // 这里用完整数字 + 千分位，而不是「2.7562 亿」——核对明细时需要逐位对得上。
+    const full = n => Math.round(Number(n) || 0).toLocaleString("en-US");
     subEl.innerHTML = (groups.length === 1)
       ? `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">${groups[0].label}</span>` +
-        `<b class="ms-hp">${fmt(groups[0].hp)}</b>` +
+        `<b class="ms-hp">${full(groups[0].hp)}</b>` +
         (hideShare ? "" : `<span class="ms-pct">占本期 ${pctOf(groups[0].hp, total)}</span>`)
       : `<span class="ms-mode">${mode.name}</span><span class="ms-sep">·</span>` +
         `<span class="ms-label">全部 ${groups.length} 组</span>` +
-        `<b class="ms-hp">${fmt(total)}</b>` +
-        `<span class="ms-pct">数据包 ${DATA.meta.dataVersion}</span>`;
+        `<b class="ms-hp">${full(total)}</b>`;
 
     // 明细的主题色跟随当前玩法：混沌蓝 / 虚构紫 / 末日橙 / 异相绿。
     // 只用一种蓝会让「关卡 / 波次 / 数字」糊成一片；分色后每种玩法自己一套层次。
