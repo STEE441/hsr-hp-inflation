@@ -145,6 +145,34 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .up { color: var(--warn) !important; }
 .down { color: var(--ok) !important; }
 
+/* 卡片右下角的「本期详情」入口。
+   平时克制：灰字 + 极淡主题色底 + 细边，和工具栏 .mini-btn 是同一套语言，
+   不抢「当前血量」的视觉重心；悬停/聚焦才亮成该指标的主题色，箭头轻微右移。
+   六个指标各自继承卡片上的 --mode-color，所以颜色天然和卡片一致。 */
+.kpi-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+.kpi-more {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 26px; padding: 0 10px;
+  font-family: inherit; font-size: 12px; font-weight: 700; line-height: 1;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--mode-color) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mode-color) 22%, var(--border));
+  border-radius: 8px; cursor: pointer;
+  transition: color .15s ease, background .15s ease, border-color .15s ease, transform .12s ease;
+}
+.kpi-more .arrow {
+  font-size: 13px; line-height: 1; opacity: .65;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.kpi-more:hover {
+  color: var(--mode-color);
+  background: color-mix(in srgb, var(--mode-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--mode-color) 55%, transparent);
+}
+.kpi-more:hover .arrow { opacity: 1; transform: translateX(1px); }
+.kpi-more:active { transform: scale(.96); }
+.kpi-more:focus-visible { outline: 2px solid var(--mode-color); outline-offset: 2px; }
+
 /* 固定三列（宽屏），窄屏降级为单列 */
 .kpi-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 820px) {
@@ -430,6 +458,9 @@ table.dl-table {
   .modal-sub .ms-hp { font-size: 20px; }
   .modal-sub .ms-label { font-size: 13px; }
   .modal-sub .ms-total { margin-left: 10px; padding: 1px 9px 3px; border-radius: 8px; }
+  /* 触屏上把「本期详情」抬到 30px，单指好点中 */
+  .kpi-foot { margin-top: 8px; }
+  .kpi-more { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
@@ -869,6 +900,13 @@ footer a { color: var(--text-muted); }
           <span>最近环比 <b class="${rate === null ? "" : rate > 0 ? "up" : "down"}">${rate === null ? "—" : fmtPct(rate)}</b></span>
           ${(card.sub === "kingAbyss" && abyssMult(last))
             ? `<span>相对王棋 <b class="up">${abyssMult(last).toFixed(2)}×</b></span>` : ""}
+        </div>
+        <div class="kpi-foot">
+          <button class="kpi-more" type="button"
+                  title="查看 ${card.label} 最新一期（${last.version}）的怪物明细"
+                  aria-label="查看${card.label}最新一期 ${last.version} 的怪物明细">
+            本期详情<span class="arrow" aria-hidden="true">›</span>
+          </button>
         </div>`;
       el.addEventListener("click", () => {
         const mi = MODES.findIndex(m => m.key === card.modeKey);
@@ -876,9 +914,26 @@ footer a { color: var(--text-muted); }
         // 一次到位：避免「先重置子指标再切换」在同一帧 setOption 两次、把动画打断
         switchMode(mi, card.sub || null);
       });
+      // 右下角「本期详情」：先切到这张卡对应的玩法/子指标，再直接打开最新一期。
+      // stopPropagation 必须加，否则会同时触发整卡点击（无副作用但会多渲染一次）。
+      el.querySelector(".kpi-more").addEventListener("click", e => {
+        e.stopPropagation();
+        openLatestDetail(card);
+      });
       (card.grid === "arb" ? g2 : g1).appendChild(el);
     });
     markActiveCard();
+  }
+
+  // 卡片右下角「本期详情」：切到该指标，再直接打开最新一期。
+  // 必须先 switchMode，否则 openDetail 会按「当前」玩法去取明细，点王棋卡却开出三骑士的页。
+  function openLatestDetail(card) {
+    const mi = MODES.findIndex(m => m.key === card.modeKey);
+    if (mi < 0) return;
+    switchMode(mi, card.sub || null);
+    const arr = (DATA[card.modeKey] || {}).data || [];
+    if (!arr.length) return;
+    openDetail(arr.length - 1);
   }
 
   // 卡片激活态：跟随「当前玩法 + 当前子指标」，只切 class 不重建 DOM（避免闪烁）
