@@ -1373,14 +1373,18 @@ def main():
     print(f"\n完成！输出: {out_path} + {js_path}")
 
     # ---- 自动更新 index.html 的缓存破除串 ----
-    # 数据文件通过 <script src="data/health_data.js?v=YYYYMMDD"> 加载，
+    # 数据文件通过 <script src="data/health_data.js?v=YYYYMMDDHHMM"> 加载，
     # 查询串不变的话，浏览器与 CDN 会一直命中旧缓存，访问者看不到新数据。
     # 以前这一步需要人工记得改，实际上总会忘，所以交给脚本自动完成。
-    stamp = time.strftime("%Y%m%d")
+    # 缓存串带「年月日时分」而不是只带日期：每天有两次抓取（12:20 / 04:10），
+    # 只用日期的话两轮共用同一个查询串，中午那轮的新数据会被访客的浏览器
+    # 缓存挡住；精确到分后每轮都有独立缓存键，分钟位还顺带记录了实际执行
+    # 时间（GitHub 排队造成的推迟一眼可见）。
+    stamp = time.strftime("%Y%m%d%H%M")
     if update_cache_buster(stamp):
         print(f"已同步 index.html 缓存串为 v={stamp}")
     else:
-        print("提示: index.html 中未找到缓存串，或已是当天版本，无需更新")
+        print("提示: index.html 中未找到缓存串，或已是当前版本，无需更新")
 
     print_summary(result)
 
