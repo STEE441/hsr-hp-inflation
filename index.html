@@ -182,6 +182,47 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 }
 .kpi-card.active .kpi-name { color: var(--mode-color); }
 
+/* 绝境王棋：贴边的红色内光晕 + 一圈外发光，营造「危险」氛围。
+   径向渐变让红光只压在边缘一圈（中心 40% 完全透明），再加内阴影做描边，
+   文字区始终落在透明带里，可读性不受影响；颜色取自 --mode-color，
+   深色/浅色两套主题自动跟随。 */
+.kpi-card.kpi-danger {
+  border-color: color-mix(in srgb, var(--mode-color) 55%, var(--border));
+  box-shadow: 0 0 18px -6px color-mix(in srgb, var(--mode-color) 70%, transparent),
+              0 6px 22px rgba(0, 0, 0, 0.35);
+}
+.kpi-card.kpi-danger.active {
+  border-color: var(--mode-color);
+  box-shadow: 0 0 0 1px var(--mode-color),
+              0 0 26px -4px color-mix(in srgb, var(--mode-color) 80%, transparent),
+              0 6px 22px rgba(0, 0, 0, 0.35);
+}
+.kpi-card.kpi-danger::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(112% 104% at 50% 52%,
+    transparent 40%,
+    color-mix(in srgb, var(--mode-color) 14%, transparent) 72%,
+    color-mix(in srgb, var(--mode-color) 40%, transparent) 100%);
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--mode-color) 30%, transparent);
+  animation: dangerBreath 3.8s ease-in-out infinite;
+}
+@keyframes dangerBreath {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+/* 浅色底上同样强度会发粉，收一档 */
+:root[data-theme="light"] .kpi-card.kpi-danger::after {
+  background: radial-gradient(112% 104% at 50% 52%,
+    transparent 46%,
+    color-mix(in srgb, var(--mode-color) 10%, transparent) 76%,
+    color-mix(in srgb, var(--mode-color) 24%, transparent) 100%);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--mode-color) 18%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card.kpi-danger::after { animation: none; opacity: 0.85; }
+}
+
 /* ---------- 怪物明细弹层 ---------- */
 .chart-hint { margin-top: 8px; font-size: 11px; color: var(--text-dim); text-align: right; }
 .modal-mask {
@@ -691,8 +732,8 @@ footer a { color: var(--text-muted); }
       //   king 与 kingAbyss 同图，共用 Y 轴、互相参照
       subs: [
         { key: "knights",   name: "三骑士总和", short: "三骑士", color: "#34d399", group: "knights" },
-        { key: "king",      name: "王棋",       short: "王棋",   color: "#f59e0b", group: "king"    },
-        { key: "kingAbyss", name: "绝境王棋",   short: "绝境",   color: "#f4511e", group: "king"    },
+        { key: "king",      name: "王棋",       short: "王棋",   color: "#fb923c", group: "king"    },
+        { key: "kingAbyss", name: "绝境王棋",   short: "绝境",   color: "#ef4444", group: "king"    },
       ],
     },
   ];
@@ -787,8 +828,8 @@ footer a { color: var(--text-muted); }
     { modeKey: "pureFiction",          label: "虚构叙事", hpKey: "hp",        sub: null,        color: "#a78bfa", grid: "main" },
     { modeKey: "apocalypticShadow",    label: "末日幻影", hpKey: "hp",        sub: null,        color: "#f59e0b", grid: "main" },
     { modeKey: "divergentArbitration", label: "三骑士",   hpKey: "knights",   sub: "knights",   color: "#34d399", grid: "arb"  },
-    { modeKey: "divergentArbitration", label: "王棋",     hpKey: "king",      sub: "king",      color: "#f59e0b", grid: "arb"  },
-    { modeKey: "divergentArbitration", label: "绝境王棋", hpKey: "kingAbyss", sub: "kingAbyss", color: "#f4511e", grid: "arb"  },
+    { modeKey: "divergentArbitration", label: "王棋",     hpKey: "king",      sub: "king",      color: "#fb923c", grid: "arb"  },
+    { modeKey: "divergentArbitration", label: "绝境王棋", hpKey: "kingAbyss", sub: "kingAbyss", color: "#ef4444", grid: "arb"  },
   ];
 
   function renderKPI() {
@@ -810,7 +851,7 @@ footer a { color: var(--text-muted); }
       const rate = prevHp ? (lastHp - prevHp) / prevHp : null;
 
       const el = document.createElement("div");
-      el.className = "kpi-card";
+      el.className = "kpi-card" + (card.sub === "kingAbyss" ? " kpi-danger" : "");
       el.dataset.cardIndex = idx;
       el.style.setProperty("--mode-color", card.color);
       el.innerHTML = `
@@ -1981,7 +2022,13 @@ footer a { color: var(--text-muted); }
     // 明细的主题色跟随当前玩法：混沌蓝 / 虚构紫 / 末日橙 / 异相绿。
     // 只用一种蓝会让「关卡 / 波次 / 数字」糊成一片；分色后每种玩法自己一套层次。
     const modal = document.getElementById("detail-modal");
-    const accent = mode.color || "#38bdf8";
+    // 明细的主题色跟随「当前指标」而不是「当前玩法」：
+    // 异相仲裁的 mode.color 固定是绿色，如果只取它，王棋和绝境的详情页会跟着绿成一片，
+    // 和卡片、曲线上的颜色对不上。这里优先用子指标自己的颜色。
+    const subCfg = mode.subs
+      ? mode.subs.find(s => s.key === (activeSubKey || defaultSub(mode)))
+      : null;
+    const accent = (subCfg && subCfg.color) || mode.color || "#38bdf8";
     modal.style.setProperty("--dl-accent", accent);
     modal.style.setProperty("--dl-accent-soft", hexToRgba(accent, 0.20));
     modal.style.setProperty("--dl-accent-line", hexToRgba(accent, 0.5));
@@ -2094,8 +2141,10 @@ footer a { color: var(--text-muted); }
   // 深底上的亮色（#38bdf8 / #34d399）放到白底上几乎看不见，所以不是单纯换背景：
   // 玩法色也换一套同色相的深色，保证两种主题下都够对比。
   const PALETTE = {
-    dark:  { chaos: "#38bdf8", fiction: "#a78bfa", shadow: "#f59e0b", arb: "#34d399", king: "#f59e0b", abyss: "#f4511e" },
-    light: { chaos: "#0369a1", fiction: "#6d28d9", shadow: "#b45309", arb: "#047857", king: "#b45309", abyss: "#b91c1c" },
+    // king / abyss 是一组「危险度递进」的暖色：王棋浅橙红 → 绝境鲜红 → 更深。
+    // 早先 king 与 shadow 都是 #f59e0b，两张卡并排几乎分不出来。
+    dark:  { chaos: "#38bdf8", fiction: "#a78bfa", shadow: "#f59e0b", arb: "#34d399", king: "#fb923c", abyss: "#ef4444" },
+    light: { chaos: "#0369a1", fiction: "#6d28d9", shadow: "#b45309", arb: "#047857", king: "#ea580c", abyss: "#b91c1c" },
   };
 
   function applyPalette(theme) {
