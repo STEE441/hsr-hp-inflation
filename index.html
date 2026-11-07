@@ -6,7 +6,18 @@
 <title>星穹铁道 · 终局玩法血量膨胀分析</title>
 <meta name="description" content="崩坏星穹铁道四种终局玩法（混沌回忆/虚构叙事/末日幻影/异相仲裁）跨版本血量膨胀曲线与数学分析" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
-<meta name="color-scheme" content="dark" />
+<meta name="color-scheme" content="light dark" />
+<!-- 主题必须在解析样式之前定下来，否则会先按 CSS 默认（深色）画一帧再切成浅色，
+     肉眼就是「打开时黑闪一下」。这段脚本同步执行、无网络请求，放在 <style> 之前。 -->
+<script>
+  (function () {
+    var t = "light";   // 默认日间
+    try { if (localStorage.getItem("hsr-theme") === "dark") t = "dark"; } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t);
+    // 让浏览器把「首个绘制帧」的底色也按主题来，否则会先用系统默认色刷一帧
+    document.documentElement.style.colorScheme = t;
+  })();
+</script>
 <style>
 :root {
   --bg: #0a0f1e;
@@ -64,7 +75,7 @@
   --axis-text: #334155;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: var(--bg); overflow-x: clip; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -411,6 +422,8 @@ table.dl-table {
 @media (max-width: 640px) {
   .modal-mask { padding: 0; }
   .modal-panel { width: 100%; max-height: 100dvh; height: 100dvh; border-radius: 0; border: none; }
+  /* 手机竖屏：图宽只有 ~340，420 高会拉成瘦长条，压到 300 比例更舒展 */
+  .chart { height: 300px; }
   .dl-table th, .dl-table td { padding: 5px 6px; font-size: 12px; }
   .dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 40%; }
   .dl-table th:nth-child(2), .dl-table td:nth-child(2) { width: 26%; }
@@ -445,6 +458,7 @@ table.dl-table {
 .card {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 18px;
+  min-width: 0;   /* 同 .analysis-grid 的道理：允许被压窄，避免图表尺寸死锁 */
 }
 
 /* ---------- Tabs ---------- */
@@ -466,8 +480,13 @@ table.dl-table {
 .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mode-color); }
 
 /* ---------- Chart ---------- */
-.chart-box { position: relative; }
-.chart { width: 100%; height: 420px; }
+.chart-box { position: relative; min-width: 0; }
+/* overflow:hidden 不是装饰，是防「旋转后页面被缩小」的关键：
+   ECharts 把 canvas 按像素写死（横屏 718px），横屏转回竖屏时，resize 生效前
+   这块超宽 canvas 会短暂撑宽文档 → 手机浏览器据此把整页缩小（innerWidth 报 743、
+   实际布局 375），用户看到的就是「内容变小、右边一大片空白、还原不回来」。
+   裁掉溢出后，文档宽度始终等于视口，缩放就不会被触发。 */
+.chart { width: 100%; height: 420px; overflow: hidden; }
 .chart-toolbar { position: absolute; top: 8px; right: 8px; z-index: 5; display: flex; gap: 6px; }
 /* 自定义图例：只在异相仲裁子指标模式显示（ECharts 自带图例会混入淡出用的临时曲线） */
 .main-legend { display: none; align-items: center; gap: 14px; margin-right: 6px; font-size: 12px; color: var(--text-muted); }
@@ -489,16 +508,23 @@ table.dl-table {
 /* ---------- Analysis ---------- */
 /* 4 张卡：≥1000px 用 2×2（永不出现 3+1 孤儿卡）；<1000px 单列 */
 .analysis-grid {
-  display: grid; grid-template-columns: 1fr;
+  display: grid;
+  /* 必须是 minmax(0, 1fr) 而不是 1fr：
+     1fr 的最小尺寸是「内容最小宽度」，ECharts 的 canvas 容器是固定像素宽的 in-flow 元素，
+     横屏时被撑到 720px 后会把整列顶宽 → 卡片变宽 → 容器宽度不变 → 图表的 resize 永远不触发，
+     横屏转回竖屏就卡在横屏尺寸，整页被撑到 784px，手机浏览器于是把整页缩小到 47%，
+     表现就是「内容缩小、右边一大块空白、还原不回来」。minmax(0,1fr) 允许列压缩到 0，
+     断掉这个死循环。 */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 1000px) {
   .analysis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.analysis-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.analysis-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; }
 .analysis-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
 .analysis-card .desc { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
-.analysis-chart { width: 100%; height: 260px; }
+.analysis-chart { width: 100%; height: 260px; overflow: hidden; }
 .stat-line { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
 .stat-line:last-child { border-bottom: none; }
 .stat-line .label { color: var(--text-muted); }
@@ -815,10 +841,28 @@ footer a { color: var(--text-muted); }
     if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + " 万";
     return Math.round(n).toLocaleString();
   }
+  // 轴刻度专用（更短）：去掉小数尾零和单位前空格。
+  // 手机屏宽只有 375，Y 轴标签「8000.00 万」会把绘图区挤到一半都不到，
+  // 压成「8000万」能省下约 30px，且不影响读数——刻度本来就只需要量级。
+  function fmtAxisCompact(n) {
+    if (n == null || !isFinite(n)) return "";
+    const tr = (x) => String(Number(x.toFixed(2)));   // 1.00→1  1.05→1.05  8000.00→8000
+    if (Math.abs(n) >= 1e8) return tr(n / 1e8) + "亿";
+    if (Math.abs(n) >= 1e4) return tr(n / 1e4) + "万";
+    return String(Math.round(n));
+  }
   function fmtPct(n) {
     if (n == null || !isFinite(n)) return "—";
     return (n * 100).toFixed(1) + "%";
   }
+  // 判断「窄屏」一律用 clientWidth，不要用 window.innerWidth：
+  // 手机上 innerWidth 会因为页面缩放而报出偏大的值——实测横屏转回竖屏后
+  // 报 743（实际布局宽度 375），拿它判断就会把桌面级留白套到手机上，
+  // 表现为「曲线被压得很窄、左边一大片空白」。
+  function viewportWidth() {
+    return document.documentElement.clientWidth || window.innerWidth || 0;
+  }
+  const isNarrow = () => viewportWidth() < 700;
   // 把玩法主题色拆成几个透明度档位，供明细里分级填充使用。
   // 用 CSS color-mix 也可以，但显式算 rgba 兼容性更稳，也便于在 DevTools 里核对。
   function hexToRgba(hex, a) {
@@ -1105,6 +1149,9 @@ footer a { color: var(--text-muted); }
       };
     });
 
+    // 窄屏（手机竖屏）：留白收紧、Y 轴刻度换短格式，把宽度尽量留给曲线
+    const narrowMain = isNarrow();
+
     const animUpdate = {
       // 形变过渡：同一曲线在新旧数据间平滑移动
       animation: true,
@@ -1120,7 +1167,7 @@ footer a { color: var(--text-muted); }
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: TIP_BG, extraCssText: "z-index:100;",
+        backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true,
         borderColor: BORDER,
         textStyle: { color: TXT, fontSize: 12 },
         formatter: (params) => {
@@ -1143,14 +1190,26 @@ footer a { color: var(--text-muted); }
       // 与工具栏里的自定义图例（#main-legend）内容重复、上下叠成两行。
       // 自定义图例可点击切换高亮，功能更强，这里直接不显示。
       legend: { show: false },
-      // grid.left 留足左侧空间：Y 轴刻度经 fmt() 会输出「5000.00 万」「2.50 亿」这类
-      // 较长的文本，left 太小（如 10）时标签会紧贴卡片左边缘甚至被裁掉。
-      // containLabel 负责按标签宽度撑开绘图区，left 则给标签本身留出外边距。
-      grid: { left: 56, right: 24, top: 46, bottom: 8, containLabel: true },
+      // grid 的左右留白按屏宽自适应：
+      // containLabel: true 时，left/right 表示「标签到卡片边缘」的空隙，
+      // 标签自身宽度会自动占位。原来固定 left:56 在 375px 手机上等于白扔一块，
+      // 绘图区被压得只剩一半；窄屏收到 6/8，桌面也从 56 收到 14（标签够用即可）。
+      grid: {
+        left: narrowMain ? 2 : 12,
+        right: narrowMain ? 6 : 16,
+        top: narrowMain ? 34 : 46,
+        bottom: 4,
+        containLabel: true,
+      },
       xAxis: {
         type: "category", data: xLabels(arr),
         axisLine: { lineStyle: { color: BORDER } },
-        axisLabel: { ...axisStyle, rotate: arr.length > 16 ? 45 : 0, interval: arr.length > 16 ? "auto" : 0 },
+        axisLabel: {
+          ...axisStyle,
+          fontSize: narrowMain ? 10 : axisStyle.fontSize,
+          rotate: arr.length > 16 ? 45 : 0,
+          interval: arr.length > 16 ? "auto" : 0,
+        },
       },
       yAxis: {
         type: logY ? "log" : "value",
@@ -1165,10 +1224,11 @@ footer a { color: var(--text-muted); }
         nameTextStyle: { ...axisStyle, padding: [0, 0, 0, 0] },
         axisLabel: {
           ...axisStyle,
-          // 给刻度标签留出固定宽度：fmt() 会输出「5000.00 万」这类较长的文本，
-          // 不设 margin 时会顶到网格左边界之外（曾出现标签越出图表的观感问题）。
-          margin: 10,
-          formatter: v => fmtAxis(v),
+          // 窄屏用更短、更小的刻度，省下的宽度直接给绘图区
+          fontSize: narrowMain ? 10 : axisStyle.fontSize,
+          // 给刻度标签留出固定宽度：不设 margin 时会顶到网格左边界之外
+          margin: narrowMain ? 4 : 8,
+          formatter: v => fmtAxisCompact(v),
         },
         splitLine,
       },
@@ -1381,7 +1441,7 @@ footer a { color: var(--text-muted); }
     const rateChart = ensureChart("chart-rate");
     rateChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
       grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
@@ -1400,7 +1460,7 @@ footer a { color: var(--text-muted); }
     const multiChart = ensureChart("chart-multi");
     multiChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
       grid: { left: 10, right: 14, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: axisStyle, splitLine },
@@ -1424,11 +1484,11 @@ footer a { color: var(--text-muted); }
     const fitBadge = bestR2 < 0.3 ? "fit-none" : (bestIsExp ? "fit-exp" : "fit-lin");
     fitChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmt(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmt(v) },
       legend: { top: 0, textStyle: { color: MUTED, fontSize: 11 } },
       grid: { left: 10, right: 14, top: 34, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels, axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
-      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtAxis(v) }, splitLine },
+      yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtAxisCompact(v) }, splitLine },
       series: [
         { name: "实际", type: "line", data: vals, symbol: "circle", symbolSize: 5, lineStyle: { color: mode.color, width: 2 }, itemStyle: { color: mode.color } },
         { name: "指数拟合", type: "line", data: expPred, lineStyle: { type: "dashed", color: "#f4511e", width: 1.5 }, itemStyle: { color: "#f4511e" }, symbol: "none" },
@@ -1450,7 +1510,7 @@ footer a { color: var(--text-muted); }
     const accelChart = ensureChart("chart-accel");
     accelChart.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => fmtPct(v) },
       grid: { left: 10, right: 10, top: 16, bottom: 8, containLabel: true },
       xAxis: { type: "category", data: labels.slice(1), axisLabel: axisStyle, axisLine: { lineStyle: { color: BORDER } } },
       yAxis: { type: "value", axisLabel: { ...axisStyle, formatter: v => fmtPct(v) }, splitLine },
@@ -1723,14 +1783,14 @@ footer a { color: var(--text-muted); }
     const el = document.getElementById("chart-compare");
     if (!charts.compare) charts.compare = echarts.init(el);
     // 窄屏放不下四个图例项，缩小字号并给图例多留一行高度，否则会压住 Y 轴标题
-    const narrow = window.innerWidth < 700;
+    const narrow = isNarrow();
     const series = MODES.map(m => {
       const arr = (DATA[m.key] || {}).data || [];
       return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
     });
     charts.compare.setOption({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
+      tooltip: { trigger: "axis", backgroundColor: TIP_BG, extraCssText: "z-index:100;", confine: true, borderColor: BORDER, textStyle: { color: TXT }, valueFormatter: v => v.toFixed(2) + "×" },
       legend: { top: 0, itemGap: narrow ? 10 : 16, textStyle: { color: MUTED, fontSize: narrow ? 11 : 12 } },
       grid: { left: 56, right: 24, top: narrow ? 64 : 46, bottom: 8, containLabel: true },
       xAxis: { type: "category", axisLabel: { show: false }, axisLine: { lineStyle: { color: BORDER } } },
@@ -2144,9 +2204,67 @@ footer a { color: var(--text-muted); }
   document.getElementById("btn-smooth").classList.toggle("active", smooth);
 
   // 窗口 resize
+  // ---------- 尺寸变化（旋转 / 分屏 / 地址栏收起） ----------
+  // ECharts 的 canvas 是固定像素尺寸，容器尺寸变了它不会自己跟。
+  // 之前只听 window.resize 并直接 forEach 调 resize()：手机横屏转回竖屏时，
+  // 只要其中一个实例抛错（或事件在布局更新前就触发），后面的图表就保持旧尺寸，
+  // 表现为「图表比卡片小一圈、左边空一大块」。现在三条措施叠加：
+  //   ① ResizeObserver 盯容器本身（分屏、字体缩放也能触发，最可靠）；
+  //   ② orientationchange 后 0/200/500ms 各补一次（部分浏览器尺寸上报有延迟）；
+  //   ③ 每个 resize 单独 try/catch，一个坏了不影响其它。
+  const CHART_HOSTS = [
+    ["main", "main-chart"],
+    ["chart-rate", "chart-rate"],
+    ["chart-multi", "chart-multi"],
+    ["chart-fit", "chart-fit"],
+    ["chart-accel", "chart-accel"],
+    ["compare", "chart-compare"],
+  ];
+
+  function resizeAllCharts() {
+    CHART_HOSTS.forEach(([key]) => {
+      const c = charts[key];
+      if (!c || typeof c.resize !== "function") return;
+      if (typeof c.isDisposed === "function" && c.isDisposed()) return;
+      try { c.resize(); } catch (e) { /* 单个图表失败不影响其余 */ }
+    });
+  }
+
+  let lastNarrowWidth = isNarrow();
+  function handleViewportChange() {
+    // 先读一次布局属性，强制浏览器完成回流，避免拿到旧尺寸
+    void document.documentElement.clientWidth;
+    resizeAllCharts();
+    const nw = isNarrow();
+    if (nw !== lastNarrowWidth) {
+      // 跨断点：主图与归一化对比图按宽度选了不同参数，需要重绘
+      lastNarrowWidth = nw;
+      renderMainChart();
+      renderCompare();
+    }
+  }
+
+  let resizeTimer = null;
   window.addEventListener("resize", () => {
-    Object.values(charts).forEach(c => c.resize());
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleViewportChange, 120);
   });
+  window.addEventListener("orientationchange", () => {
+    [0, 200, 500].forEach(d => setTimeout(handleViewportChange, d));
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleViewportChange, 120);
+    });
+  }
+  if (typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(() => resizeAllCharts());
+    CHART_HOSTS.forEach(([, id]) => {
+      const el = document.getElementById(id);
+      if (el) ro.observe(el);
+    });
+  }
 
   // ---------- 日间 / 夜间模式 ----------
   // 深底上的亮色（#38bdf8 / #34d399）放到白底上几乎看不见，所以不是单纯换背景：
@@ -2191,12 +2309,20 @@ footer a { color: var(--text-muted); }
 
   function syncThemeButton() {
     const btn = document.getElementById("btn-theme");
-    if (btn) btn.textContent = currentTheme() === "light" ? "夜间" : "日间";
+    if (!btn) return;
+    // 显示「当前」模式，而不是即将切去的模式：
+    // 日间模式下按钮写「日间」，点一下就进入夜间、按钮变成「夜间」。
+    const t = currentTheme();
+    btn.textContent = t === "light" ? "日间" : "夜间";
+    btn.title = t === "light" ? "当前：日间模式 · 点击切换到夜间" : "当前：夜间模式 · 点击切换到日间";
+    btn.setAttribute("aria-label", btn.title);
   }
 
   // ECharts 的配色全写死在 option 里，换主题必须整体重绘，不能只改 CSS
   function applyTheme(theme, persist) {
     document.documentElement.setAttribute("data-theme", theme);
+    // 同步浏览器自己的 UI 配色（滚动条、表单控件、首帧底色）
+    document.documentElement.style.colorScheme = theme;
     if (persist) { try { localStorage.setItem("hsr-theme", theme); } catch (e) { /* 隐私模式忽略 */ } }
     refreshChartColors();
     applyPalette(theme);
@@ -2211,10 +2337,9 @@ footer a { color: var(--text-muted); }
     renderNormStats();
   }
 
-  // 先定主题再首次渲染，避免初始化时画两遍
-  let START_THEME = "dark";
-  try { START_THEME = localStorage.getItem("hsr-theme") === "light" ? "light" : "dark"; } catch (e) { /* 忽略 */ }
-  document.documentElement.setAttribute("data-theme", START_THEME);
+  // 主题已由 <head> 里的同步脚本按「默认日间 + localStorage 覆盖」定好，
+  // 这里只读取当前值，保证 JS 侧与 DOM 一致（不再二次切换，也就没有闪烁）。
+  const START_THEME = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
   refreshChartColors();
   applyPalette(START_THEME);
 
