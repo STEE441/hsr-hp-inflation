@@ -625,6 +625,25 @@ td { font-variant-numeric: tabular-nums; }
 footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 12px; text-align: center; }
 footer a { color: var(--text-muted); }
 
+/* 工具栏（图例 + 对数Y轴 + 平滑）在窄屏必须独占一行，不能浮在图表上。
+   断点取 699px，与 JS 里的 isNarrow()（clientWidth < 700）保持一致：
+   这一区间 grid 顶部留白只有 26px，绝对定位的按钮（8~34px）会压到绘图区顶部，
+   Y 轴最高刻度（如「1亿」）正好被盖住。桌面端留白够，继续用浮层不占高度。 */
+@media (max-width: 699px) {
+  .chart-toolbar {
+    position: static;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 0 2px 8px;
+  }
+  /* 图例（异相仲裁子指标才有）独占一整行，把两个按钮挤到下一行右对齐；
+     否则 281px 宽度下会出现「图例 + 对数Y轴」一行、「平滑」孤零零一行的情况。 */
+  .main-legend { flex: 1 1 100%; margin-right: 0; gap: 10px; font-size: 11px; }
+  /* 触屏上按钮热区放大到 ~33px 高，避免误触 */
+  .mini-btn { padding: 7px 13px; font-size: 12px; }
+}
+
 @media (max-width: 640px) {
   .chart { height: 300px; }
   h1 { font-size: 18px; }
@@ -1197,7 +1216,9 @@ footer a { color: var(--text-muted); }
       grid: {
         left: narrowMain ? 2 : 12,
         right: narrowMain ? 6 : 16,
-        top: narrowMain ? 34 : 46,
+        // 窄屏原来留 34px 是为了给浮层按钮让位；按钮改成独占一行后，
+        // 这段空白只剩「给最高刻度留头顶」的作用，收到 26px 把高度还给曲线。
+        top: narrowMain ? 26 : 46,
         bottom: 4,
         containLabel: true,
       },
