@@ -130,6 +130,17 @@ PHASE_OVERRIDE = {
         "phase1_scale": 1.0,
         "note": "归寂 3 阶段，实测比例 1:1.2:1.65",
     },
+    # 二相乐园（测试服 4.7.51 的「将杀王棋」，怪 503501202）：
+    # 上游 MaxMonsterPhase / PhaseList 均为 null，会被静默当成单阶段，
+    # 只算出第一条血（25,017,324）。游戏内实测三条血，比例 1 : 1 : 2.35。
+    # 第 2 条血另带一个「隐藏」的贪饕 4 级效果：上游 event.invasion 是 null，
+    # 名单里也没有这只怪，所以必须在这里显式声明，否则整段额外伤害静默消失。
+    "5035012": {
+        "ratios": [1.0, 1.0, 2.35],
+        "phase1_scale": 1.0,
+        "hidden_inv": {"level": 4, "phase": 2},
+        "note": "二相乐园 3 阶段，实测 1:1:2.35；第 2 条血隐藏贪饕 IV（上游无 invasion 字段）",
+    },
 }
 
 
@@ -287,8 +298,17 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
 
     # 贪饕侵蚀：本体打死后多一条贪饕血条，按等级追加「等效消耗伤害」
     inv_hp = invasion_extra_damage(body, hp_last_phase, len(ratios), invasion_level) if invasion_level else 0.0
+    inv_level_eff = int(invasion_level or 0)
 
-    return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp}
+    # 隐藏贪饕：上游没写 invasion，但实测某一条血打完会额外刷一条贪饕条。
+    # 只在「上游没标」时生效，避免和 event.invasion 重复计算。
+    if not inv_level_eff:
+        spec = (PHASE_OVERRIDE.get(key) or {}).get("hidden_inv")
+        if spec:
+            inv_hp, inv_level_eff = hidden_invasion_extra(unit, ratios, spec)
+
+    return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp,
+            "invLevel": inv_level_eff}
 
 
 def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
@@ -312,6 +332,25 @@ def invasion_extra_damage(hp_body, hp_last_phase, phase_count, level):
     m0 = (hp_last_phase if multi else hp_body) * k
     spent, _ = invasion_spent(level)
     return m0 * spent
+
+
+def hidden_invasion_extra(unit, ratios, spec):
+    """PHASE_OVERRIDE.hidden_inv 的等效伤害，返回 (额外伤害, 生效等级)。
+
+    有些 BOSS 的贪饕是「隐藏」的：上游 event.invasion 为 null、名单里也没这只怪，
+    但游戏内某一条血打完会额外刷出一条贪饕条（例如二相乐园的第 2 条血）。
+    条的初始上限沿用多阶段口径 M0 = 该阶段血量 × INVASION_K_MULTI[level]，
+    再乘打空所需的消耗比例 —— 与归寂「末阶段 × 1.8」是同一把尺子，
+    只是把基准从末阶段换成了指定的那一条。
+    """
+    lv = int(spec.get("level") or 0)
+    idx = int(spec.get("phase") or len(ratios)) - 1
+    k = INVASION_K_MULTI.get(lv)
+    if not k or not (0 <= idx < len(ratios)):
+        return 0.0, 0
+    m0 = unit * ratios[idx] * k
+    spent, _ = invasion_spent(lv)
+    return m0 * spent, lv
 
 
 
@@ -360,7 +399,9 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, p
         "contrib": round(contribution if contribution is not None else hp * count),
         "count": count,
         "phases": phases,
-        "inv": int(invasion_level or 0),
+        # 隐藏贪饕（PHASE_OVERRIDE.hidden_inv）在上游没有字段，等级由 parts 带回来，
+        # 否则明细里会出现「有贪饕额外伤害、却没有贪饕标签」的怪。
+        "inv": int((parts or {}).get("invLevel") or invasion_level or 0),
     }
 
     if parts:
@@ -867,6 +908,13 @@ def calc_pf_lane_hp_fallback(ev_list, source, tables, detail=None):
     return total
 
 
+# 上游 peak/version.json 有时会把「刚进测试服、还没定档」的赛季塞进 "unknown" 桶。
+# 那种赛季默认既不进曲线也不进日志；真要上表就在这里登记 赛季ID → 版本号，
+# 例如 {"12": "4.8"}。登记后无需再改别处，它和三骑士/绝境一样参与汇总。
+# 目前 12（喜笑与悲泣）按用户要求「等 nanoka 分配版本号」暂不登记。
+PEAK_VERSION_FIX = {}
+
+
 # ---------------------------------------------------------------------------
 # 异相仲裁 (peak)
 # ---------------------------------------------------------------------------
@@ -876,10 +924,16 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
     version_map = fetch_json(f"{STATIC}/{ver}/zh/peak/version.json")
 
     data = []
+    unassigned = []
     for version, ids in version_map.items():
         if version == "unknown":
-            continue
-        if version not in live_versions:
+            # 上游没分配版本号的新赛季：只在显式登记后才入表
+            fixed = PEAK_VERSION_FIX.get(str(ids[0]))
+            if not fixed:
+                unassigned.append(str(ids[0]))
+                continue
+            version = fixed
+        elif version not in live_versions:
             continue
         season_id = str(ids[0])
         detail = fetch_json(f"{STATIC}/{ver}/zh/peak/{season_id}.json")
@@ -935,6 +989,9 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
             }
 
     data.sort(key=lambda x: version_sort_key(x["version"]))
+    if unassigned:
+        print(f"  未定版本、暂不入表: {', '.join(unassigned)}"
+              f"（如需上表，在 PEAK_VERSION_FIX 里登记）")
     return data
 
 
