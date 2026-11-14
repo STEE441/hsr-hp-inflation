@@ -135,11 +135,13 @@ PHASE_OVERRIDE = {
     # 只算出第一条血（25,017,324）。游戏内实测三条血，比例 1 : 1 : 2.35。
     # 第 2 条血另带一个「隐藏」的贪饕 4 级效果：上游 event.invasion 是 null，
     # 名单里也没有这只怪，所以必须在这里显式声明，否则整段额外伤害静默消失。
+    # k=1.6 是这只怪自己的档位（实测贪饕条 = 第 2 条血的 1.6 倍），
+    # 不是多阶段默认的 1.8 —— 用户 2026-11-15 实测修正。
     "5035012": {
         "ratios": [1.0, 1.0, 2.35],
         "phase1_scale": 1.0,
-        "hidden_inv": {"level": 4, "phase": 2},
-        "note": "二相乐园 3 阶段，实测 1:1:2.35；第 2 条血隐藏贪饕 IV（上游无 invasion 字段）",
+        "hidden_inv": {"level": 4, "phase": 2, "k": 1.6},
+        "note": "二相乐园 3 阶段，实测 1:1:2.35；第 2 条血隐藏贪饕 IV，条 = 该阶段 ×1.6",
     },
 }
 
@@ -339,13 +341,15 @@ def hidden_invasion_extra(unit, ratios, spec):
 
     有些 BOSS 的贪饕是「隐藏」的：上游 event.invasion 为 null、名单里也没这只怪，
     但游戏内某一条血打完会额外刷出一条贪饕条（例如二相乐园的第 2 条血）。
-    条的初始上限沿用多阶段口径 M0 = 该阶段血量 × INVASION_K_MULTI[level]，
-    再乘打空所需的消耗比例 —— 与归寂「末阶段 × 1.8」是同一把尺子，
-    只是把基准从末阶段换成了指定的那一条。
+
+    条上限 M0 = 该阶段血量 × k，再乘打空所需的消耗比例。
+    k 默认取多阶段口径 INVASION_K_MULTI[level]（Lv.4 → 1.8，与归寂「末阶段 ×1.8」同源），
+    个别 BOSS 的贪饕条比例是单独一档的，用 spec["k"] 显式覆盖
+    （二相乐园第 2 条血实测 1.6 倍，不是 1.8）。
     """
     lv = int(spec.get("level") or 0)
     idx = int(spec.get("phase") or len(ratios)) - 1
-    k = INVASION_K_MULTI.get(lv)
+    k = float(spec["k"]) if spec.get("k") is not None else INVASION_K_MULTI.get(lv)
     if not k or not (0 <= idx < len(ratios)):
         return 0.0, 0
     m0 = unit * ratios[idx] * k
