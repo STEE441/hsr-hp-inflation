@@ -130,19 +130,23 @@ PHASE_OVERRIDE = {
         "phase1_scale": 1.0,
         "note": "归寂 3 阶段，实测比例 1:1.2:1.65",
     },
-    # 二相乐园（测试服 4.7.51 的「将杀王棋」，怪 503501202）：
+    # 二相乐园（「将杀王棋」，怪 503501202；页面名「贪欢的神颅」）：
     # 上游 MaxMonsterPhase / PhaseList 均为 null，会被静默当成单阶段，
-    # 只算出第一条血（25,017,324）。游戏内实测三条血，比例 1 : 1 : 2.35。
+    # 只算出第一条血。游戏内实测三条血，比例 1 : 1 : 2.35。
     # 第 2 条血另带一个「隐藏」的贪饕 4 级效果：上游 event.invasion 是 null，
     # 名单里也没有这只怪，所以必须在这里显式声明，否则整段额外伤害静默消失。
     # k 是这只怪自己的贪饕系数（= 第 2 条血的多少倍）：
     #   2026-11-14 实测 1.8（多阶段默认），11-15 修正为 1.6，
     #   11-17 官方改机制 → 1.0（贪饕条上限就等于第 2 条血本身）。
+    # share 是「打空这条贪饕条需要消耗的等效伤害 / M₀」：
+    #   默认按 invasion_spent()（把压到斩杀线以下的上限当白拿，Lv.4 = 0.875）；
+    #   2026-11-19 实测：上限压到 θ=23% 后不再产生灰血，剩余当前血必须 1:1 实打，
+    #   普通队（1:2 削血）实耗 = 0.98。这只 BOSS 单独按实测值覆盖。
     "5035012": {
         "ratios": [1.0, 1.0, 2.35],
         "phase1_scale": 1.0,
-        "hidden_inv": {"level": 4, "phase": 2, "k": 1.0},
-        "note": "二相乐园 3 阶段，实测 1:1:2.35；第 2 条血隐藏贪饕 IV，条 = 该阶段 ×1.0",
+        "hidden_inv": {"level": 4, "phase": 2, "k": 1.0, "share": 0.98},
+        "note": "二相乐园 3 阶段，实测 1:1:2.35；第 2 条血隐藏贪饕 IV，条 = 该阶段 ×1.0，实耗 0.98",
     },
 }
 
@@ -346,7 +350,9 @@ def hidden_invasion_extra(unit, ratios, spec):
     条上限 M0 = 该阶段血量 × k，再乘打空所需的消耗比例。
     k 默认取多阶段口径 INVASION_K_MULTI[level]（Lv.4 → 1.8，与归寂「末阶段 ×1.8」同源），
     个别 BOSS 的贪饕条比例是单独一档的，用 spec["k"] 显式覆盖
-    （二相乐园第 2 条血实测 1.6 倍，不是 1.8）。
+    （二相乐园第 2 条血：先 1.6，后按新机制改为 1.0）。
+    消耗比例默认走 invasion_spent()；spec["share"] 可按实测覆盖 ——
+    上限压到 θ 之后剩余的血要 1:1 实打，Lv.4 普通队实耗 0.98（旧的 0.875 把那段当白拿）。
     """
     lv = int(spec.get("level") or 0)
     idx = int(spec.get("phase") or len(ratios)) - 1
@@ -354,7 +360,10 @@ def hidden_invasion_extra(unit, ratios, spec):
     if not k or not (0 <= idx < len(ratios)):
         return 0.0, 0
     m0 = unit * ratios[idx] * k
-    spent, _ = invasion_spent(lv)
+    if spec.get("share") is not None:
+        spent = float(spec["share"])
+    else:
+        spent, _ = invasion_spent(lv)
     return m0 * spent, lv
 
 
