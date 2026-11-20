@@ -453,13 +453,29 @@ def fetch_chaos_memory(ver, tables, live_versions, details=None):
     maze = load_reference(ver, "maze.json")
     version_map = fetch_json(f"{STATIC}/{ver}/zh/maze/version.json")
 
+    # 先把「版本 → 赛季」摊平并按版本排序，再补「还没分配版本号的新赛季」（见下）。
+    pairs = [(v, str(ids[0])) for v, ids in version_map.items()
+             if v != "static" and v in live_versions and ids]
+    pairs.sort(key=lambda x: version_sort_key(x[0]))
+
+    # 4.8 这类赛季刚进数据包、`version.json` 还没给它版本号，条目根本不在表里。
+    # 判据：`maze.json` 里编号比已知最大赛季更大、且有中文名的条目。
+    # 版本号按混沌序列外推（4.7 → 4.8），前端再靠 meta.testVersions 把它标成测试服。
+    known = {sid for _, sid in pairs}
+    max_sid = max((int(s) for s in known if s.isdigit()), default=0)
+    extra = sorted(
+        (str(k) for k, info in maze.items()
+         if str(k).isdigit() and int(k) > max_sid and str(k) not in known and (info or {}).get("zh")),
+        key=int,
+    )
+    versions = [v for v, _ in pairs]
+    for sid in extra:
+        versions.append(extend_version(versions, len(versions)))
+        pairs.append((versions[-1], sid))
+        print(f"  · 新赛季 {sid}（{maze[sid].get('zh')}）按序列外推为 {versions[-1]}")
+
     data = []
-    for version, ids in version_map.items():
-        if version == "static":
-            continue
-        if version not in live_versions:
-            continue
-        season_id = str(ids[0])
+    for version, season_id in pairs:
         detail = fetch_json(f"{STATIC}/{ver}/zh/maze/{season_id}.json")
         if not isinstance(detail, list) or not detail:
             continue
@@ -664,12 +680,20 @@ def fetch_pure_fiction(ver, tables, details=None):
       第二/三波 = Σ(小怪血量) + BOSS血量 × max(0, 1 - 3% × 小怪数)
     """
     story_map = load_reference(ver, "maze_extra.json")
+    # 「新赛季刚进数据包、live_begin 字段还没写」的（如 4.8 的添笔生境 2029）：
+    # 只放行「赛季编号比已收录的最大编号更大」的条目。早期 1.x 残留数据同样没有
+    # live_begin 字段，但编号更小，会被这条规则挡住。
+    live_sids = [int(s) for s, i in story_map.items() if (i or {}).get("zh") and "live_begin" in i]
+    max_live_sid = max(live_sids) if live_sids else 0
+
     data = []
     for season_id, info in story_map.items():
         if not info.get("zh"):
             continue
         if "live_begin" not in info:
-            continue
+            if not (str(season_id).isdigit() and int(season_id) > max_live_sid):
+                continue
+            print(f"  · 新赛季 {season_id}（{info.get('zh')}）尚无 live_begin，按编号收录")
         detail = fetch_json(f"{STATIC}/{ver}/zh/story/{season_id}.json")
         if not isinstance(detail, dict):
             continue
@@ -923,10 +947,10 @@ def calc_pf_lane_hp_fallback(ev_list, source, tables, detail=None):
 
 
 # 上游 peak/version.json 有时会把「刚进测试服、还没定档」的赛季塞进 "unknown" 桶。
-# 那种赛季默认既不进曲线也不进日志；真要上表就在这里登记 赛季ID → 版本号，
-# 例如 {"12": "4.8"}。登记后无需再改别处，它和三骑士/绝境一样参与汇总。
-# 目前 12（喜笑与悲泣）按用户要求「等 nanoka 分配版本号」暂不登记。
-PEAK_VERSION_FIX = {}
+# 不登记就不入表，只在日志里提示；登记后按 赛季ID → 版本号 入表。
+# 2026-11-20：赛季 12（喜笑与悲泣 / 贪欢的神颅）登记为 4.8 —— 前端默认只显示正式服，
+# 它会落在「含测试服」视图里，正式服视图看不到。等 nanoka 正式分配后可保留（值相同）。
+PEAK_VERSION_FIX = {"12": "4.8"}
 
 
 # ---------------------------------------------------------------------------
