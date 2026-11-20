@@ -1079,28 +1079,24 @@ def detect_live_versions(ver):
 
 
 def classify_versions(ver):
-    """按 live_begin 与「现在」的关系，把版本分成 (已上线集合, 测试服集合)。
+    """按「数据包版本 = 当前正式服客户端版本」切出 (已上线集合, 测试服集合)。
 
-    `detect_live_versions()` 只要 `live_begin` 字段存在就算正式服 —— 这会把
-    还没开放的版本（如 live_begin=2026-12-14 的 4.7）也算进来，因为数据包里
-    已经带了它的内容。前端要「只正式服 / 含测试服」两种视图，所以这里再按时间切一刀：
+    判据：数据包号的前两段就是正式服客户端版本（4.7.52 → 4.7）。
+    nanoka 的数据包里会同时夹带下一版（甚至下下版）的测试内容，
+    但包号跟着**正式服**走：4.6 还是正式服时包号是 4.6.54，即使里面已经有 4.7 的赛季；
+    4.7 上线后包号才变 4.7.52。所以「版本号 > 包号前两段」= 测试服。
 
-      live_begin 早于现在（或字段缺失/为空）→ 已上线
-      live_begin 晚于现在                  → 测试服（预下载，正式服还看不到）
+    ⚠️ 不要用 `maze.json` 的 `live_begin` 判版本是否上线 —— 那是「这一期混沌的开放时间」，
+    不是版本上线时间：4.7 的混沌要 2026-12-14 才轮换（`live_begin` 在未来），
+    但 4.7 版本本身 2026-11-19 就已经在正式服了。按 `live_begin` 判会把 4.7 误标成测试服。
     """
-    maze = load_reference(ver, "maze.json")
+    cur = version_sort_key(ver)[:2]            # 4.7.52 → [4, 7]
     version_map = fetch_json(f"{STATIC}/{ver}/zh/maze/version.json")
-    now = time.strftime("%Y-%m-%d %H:%M:%S")   # 与 live_begin 同格式，字符串比较即可
     live_now, test = set(), set()
-    for version, ids in version_map.items():
-        if version == "static" or not ids:
+    for version in version_map:
+        if version == "static":
             continue
-        info = maze.get(str(ids[0]), {}) or {}
-        lb = info.get("live_begin")
-        if not isinstance(lb, str) or not lb.strip():
-            live_now.add(version)
-            continue
-        (test if lb > now else live_now).add(version)
+        (test if version_sort_key(version)[:2] > cur else live_now).add(version)
     return live_now, test
 
 
@@ -1380,7 +1376,8 @@ def main():
     live_versions = detect_live_versions(ver)
     print(f"正式服版本(live): {sorted(live_versions, key=version_sort_key)}")
     live_now_versions, test_versions = classify_versions(ver)
-    print(f"已上线(截止今天): {sorted(live_now_versions, key=version_sort_key)}")
+    print(f"已上线(≤ 数据包版本 {'.'.join(ver.split('.')[:2])}): "
+          f"{sorted(live_now_versions, key=version_sort_key)[-4:]}")
     print(f"测试服(未上线): {sorted(test_versions, key=version_sort_key)}")
 
     details_by_mode = {
