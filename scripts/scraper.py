@@ -1078,6 +1078,32 @@ def detect_live_versions(ver):
     return live
 
 
+def classify_versions(ver):
+    """按 live_begin 与「现在」的关系，把版本分成 (已上线集合, 测试服集合)。
+
+    `detect_live_versions()` 只要 `live_begin` 字段存在就算正式服 —— 这会把
+    还没开放的版本（如 live_begin=2026-12-14 的 4.7）也算进来，因为数据包里
+    已经带了它的内容。前端要「只正式服 / 含测试服」两种视图，所以这里再按时间切一刀：
+
+      live_begin 早于现在（或字段缺失/为空）→ 已上线
+      live_begin 晚于现在                  → 测试服（预下载，正式服还看不到）
+    """
+    maze = load_reference(ver, "maze.json")
+    version_map = fetch_json(f"{STATIC}/{ver}/zh/maze/version.json")
+    now = time.strftime("%Y-%m-%d %H:%M:%S")   # 与 live_begin 同格式，字符串比较即可
+    live_now, test = set(), set()
+    for version, ids in version_map.items():
+        if version == "static" or not ids:
+            continue
+        info = maze.get(str(ids[0]), {}) or {}
+        lb = info.get("live_begin")
+        if not isinstance(lb, str) or not lb.strip():
+            live_now.add(version)
+            continue
+        (test if lb > now else live_now).add(version)
+    return live_now, test
+
+
 def load_overrides_file():
     """读取 data/overrides.json，找不到或解析失败时返回 (None, 路径)"""
     candidates = [
@@ -1353,6 +1379,9 @@ def main():
 
     live_versions = detect_live_versions(ver)
     print(f"正式服版本(live): {sorted(live_versions, key=version_sort_key)}")
+    live_now_versions, test_versions = classify_versions(ver)
+    print(f"已上线(截止今天): {sorted(live_now_versions, key=version_sort_key)}")
+    print(f"测试服(未上线): {sorted(test_versions, key=version_sort_key)}")
 
     details_by_mode = {
         "chaosMemory": {},
@@ -1382,7 +1411,9 @@ def main():
             "dataVersion": ver,
             "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "source": SITE,
-            "liveVersion": max(live_versions, key=version_sort_key) if live_versions else None,
+            # 「正式服」以今天真正上线的版本为准（4.7 的 live_begin 在未来，属测试服）
+            "liveVersion": max(live_now_versions, key=version_sort_key) if live_now_versions else None,
+            "testVersions": [],
         },
         "chaosMemory": {"name": "混沌回忆", "data": chaos},
         "apocalypticShadow": {"name": "末日幻影", "data": shadow},
@@ -1391,6 +1422,19 @@ def main():
     }
 
     result = align_versions(result)
+
+    # ---- 测试服版本清单（前端「仅正式服 / 含测试服」开关的判据）----
+    # 除了版本表里 live_begin 在未来的那些，还要补上「表里没有、靠外推得到的版本」
+    # （末日幻影的 4.8 就是这种：seasonId 超出混沌序列，versions 靠 extend_version 推出）。
+    max_live = max(live_now_versions, key=version_sort_key) if live_now_versions else None
+    if max_live:
+        for key in ("chaosMemory", "apocalypticShadow", "pureFiction", "divergentArbitration"):
+            for p in (result.get(key) or {}).get("data") or []:
+                if version_sort_key(str(p.get("version") or "0")) > version_sort_key(max_live):
+                    test_versions.add(str(p["version"]))
+    result["meta"]["testVersions"] = sorted(test_versions, key=version_sort_key)
+    print(f"测试服数据点(前端可隐藏): {result['meta']['testVersions']}")
+
     # 怪物级修正优先：改一只怪 → 自动重算 波次/路/总量
     apply_monster_overrides(details_by_mode, result)
     # 版本级修正殿后：整体兜底，会覆盖上面的重算结果

@@ -128,6 +128,16 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
 .btn:active { transform: scale(0.97); }
 .btn-primary { background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; }
 .btn-primary:hover { filter: brightness(1.15); }
+/* 「含测试服」开启态：按钮自带一个小圆点，扫一眼就知道当前有没有混入未上线数据 */
+.btn-on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+}
+.btn-on::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px var(--accent);
+}
 
 /* ---------- KPI Cards ---------- */
 .kpi-grid {
@@ -666,6 +676,7 @@ footer a { color: var(--text-muted); }
       <span class="meta-chip">数据版本 <b id="meta-ver">—</b></span>
       <span class="meta-chip">正式服 <b id="meta-live">—</b></span>
       <span class="meta-chip">更新于 <b id="meta-date">—</b></span>
+      <button class="btn" id="btn-test" title="显示/隐藏测试服（未上线版本）数据">仅正式服</button>
       <button class="btn" id="btn-theme" title="切换日间/夜间模式">日间</button>
       <button class="btn btn-primary" id="btn-export">导出高清图</button>
     </div>
@@ -764,12 +775,38 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611191329"></script>
+<script src="data/health_data.js?v=202611201758"></script>
 <script>
 (function () {
   "use strict";
   const DATA = window.HP_DATA;
   if (!DATA) { document.body.innerHTML = "<p style='padding:40px;text-align:center;color:#f4511e'>数据加载失败：找不到 window.HP_DATA</p>"; return; }
+
+  // ---------- 测试服数据开关 ----------
+  // 数据包里同时带着正式服和「测试服（未上线版本）」的点，由 meta.testVersions 标记
+  // （scraper 按 live_begin 与今天比较得出，外加靠外推得到的版本，如末日的 4.8）。
+  // 默认只显示正式服：访客不该把还没开放的数值当成当期数据。
+  // 开关状态记在 localStorage，和主题一样是「本机偏好」，不写进数据文件。
+  const TEST_VERSIONS = new Set((((DATA.meta || {}).testVersions) || []).map(String));
+  let showTest = false;
+  try { showTest = localStorage.getItem("hsr-test") === "1"; } catch (e) { /* 隐私模式忽略 */ }
+
+  // 所有渲染都从这里取数据，别再直接读 DATA[key].data —— 否则开关会漏掉某几处
+  function modeData(key) {
+    const arr = ((DATA[key] || {}).data) || [];
+    if (showTest || !TEST_VERSIONS.size) return arr;
+    return arr.filter(p => !TEST_VERSIONS.has(String(p.version)));
+  }
+
+  function syncTestButton() {
+    const b = document.getElementById("btn-test");
+    if (!b) return;
+    b.textContent = showTest ? "含测试服" : "仅正式服";
+    b.classList.toggle("btn-on", showTest);
+    b.title = showTest
+      ? "当前包含测试服数据" + (TEST_VERSIONS.size ? `（${[...TEST_VERSIONS].join(" / ")}）` : "") + "，点击只显示正式服"
+      : "当前只显示正式服数据，点击显示测试服（未上线版本）数据";
+  }
 
   const MODES = [
     { key: "chaosMemory", name: "混沌回忆", color: "#38bdf8", hpKey: "hp" },
@@ -910,7 +947,7 @@ footer a { color: var(--text-muted); }
     g2.innerHTML = "";
 
     CARDS.forEach((card, idx) => {
-      const arr = (DATA[card.modeKey] || {}).data || [];
+      const arr = modeData(card.modeKey);
       if (!arr.length) return;
       const last = arr[arr.length - 1];
       const prev = arr.length > 1 ? arr[arr.length - 2] : null;
@@ -1030,7 +1067,7 @@ footer a { color: var(--text-muted); }
 
   function currentSeries() {
     const m = MODES[activeMode];
-    const arr = (DATA[m.key] || {}).data || [];
+    const arr = modeData(m.key);
     const key = m.subs ? (activeSubKey || defaultSub(m)) : m.hpKey;
     return { mode: m, arr, key };
   }
@@ -1806,7 +1843,7 @@ footer a { color: var(--text-muted); }
     // 窄屏放不下四个图例项，缩小字号并给图例多留一行高度，否则会压住 Y 轴标题
     const narrow = isNarrow();
     const series = MODES.map(m => {
-      const arr = (DATA[m.key] || {}).data || [];
+      const arr = modeData(m.key);
       return { name: m.name, type: "line", data: calcMulti(arr, m.hpKey), smooth, lineStyle: { color: m.color, width: 2 }, itemStyle: { color: m.color }, symbol: "none" };
     });
     charts.compare.setOption({
@@ -1866,7 +1903,7 @@ footer a { color: var(--text-muted); }
     ];
 
     const modes = SERIES.map(m => {
-      const arr = (DATA[m.key] || {}).data || [];
+      const arr = modeData(m.key);
       const vals = arr.map(p => Number(p[m.hpKey] || 0));
       const majors = arr.map(p => String(p.version || "").split(".")[0]);
       const n = vals.length;
@@ -2339,15 +2376,9 @@ footer a { color: var(--text-muted); }
     btn.setAttribute("aria-label", btn.title);
   }
 
-  // ECharts 的配色全写死在 option 里，换主题必须整体重绘，不能只改 CSS
-  function applyTheme(theme, persist) {
-    document.documentElement.setAttribute("data-theme", theme);
-    // 同步浏览器自己的 UI 配色（滚动条、表单控件、首帧底色）
-    document.documentElement.style.colorScheme = theme;
-    if (persist) { try { localStorage.setItem("hsr-theme", theme); } catch (e) { /* 隐私模式忽略 */ } }
-    refreshChartColors();
-    applyPalette(theme);
-    syncThemeButton();
+  // 换主题、切测试服开关都要「全部重绘」：ECharts 的 option 里写死了颜色与数据，
+  // 只改 CSS 或只改某一处都会留下新旧混合的画面。集中在这里，避免两处清单漂移。
+  function renderAll() {
     renderKPI();
     renderTabs();
     renderMainChart();
@@ -2356,6 +2387,19 @@ footer a { color: var(--text-muted); }
     renderTurningPoints();
     renderCompare();
     renderNormStats();
+    syncThemeButton();
+    syncTestButton();
+  }
+
+  // ECharts 的配色全写死在 option 里，换主题必须整体重绘，不能只改 CSS
+  function applyTheme(theme, persist) {
+    document.documentElement.setAttribute("data-theme", theme);
+    // 同步浏览器自己的 UI 配色（滚动条、表单控件、首帧底色）
+    document.documentElement.style.colorScheme = theme;
+    if (persist) { try { localStorage.setItem("hsr-theme", theme); } catch (e) { /* 隐私模式忽略 */ } }
+    refreshChartColors();
+    applyPalette(theme);
+    renderAll();
   }
 
   // 主题已由 <head> 里的同步脚本按「默认日间 + localStorage 覆盖」定好，
@@ -2365,18 +2409,16 @@ footer a { color: var(--text-muted); }
   applyPalette(START_THEME);
 
   // ---------- 初始化 ----------
-  renderKPI();
-  renderTabs();
-  renderMainChart();
-  renderAnalyses();
-  renderStats();
-  renderTurningPoints();
-  renderCompare();
-  renderNormStats();
-  syncThemeButton();
+  renderAll();
 
   document.getElementById("btn-theme").addEventListener("click", () => {
     applyTheme(currentTheme() === "light" ? "dark" : "light", true);
+  });
+
+  document.getElementById("btn-test").addEventListener("click", () => {
+    showTest = !showTest;
+    try { localStorage.setItem("hsr-test", showTest ? "1" : "0"); } catch (e) { /* 隐私模式忽略 */ }
+    renderAll();
   });
 })();
 </script>
