@@ -775,7 +775,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611201829"></script>
+<script src="data/health_data.js?v=202611222140"></script>
 <script>
 (function () {
   "use strict";
@@ -2038,19 +2038,28 @@ footer a { color: var(--text-muted); }
       <td class="num">${pctOf(bodyShare, waveTotal)}</td>
     </tr>`;
 
-    // 多阶段敌人：逐阶段列出，是「本体」的分解
+    // 多阶段敌人：逐阶段列出，是「本体」的分解。
+    // 贪饕条按 m.invAfter 插在「第 N 阶段之后」——贪欢的神颅在游戏里是
+    // 「阶段 1 → 阶段 2 → 贪饕条 → 阶段 3」，所以条夹在 2 和 3 中间，
+    // 不能一律排在最后（那是普通贪饕：末阶段打完才刷条）。
+    // 单阶段怪不写 phaseHp，走下面的兜底。
+    const invAfter = Math.min(
+      Math.max(1, Number(m.invAfter) || ph.length || 1),
+      Math.max(ph.length, 1)
+    );
+    const invRow = () => `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)}</td>` +
+      `<td class="num">${fmt(inv)}</td><td></td>` +
+      `<td class="num">${fmt(invShare)}</td>` +
+      `<td class="num">${pctOf(invShare, waveTotal)}</td></tr>`;
+
     if (ph.length > 1) {
       ph.forEach((v, i) => {
         html += `<tr class="dl-sub"><td class="sub">第 ${i + 1} 阶段</td>` +
                 `<td class="num">${fmt(v)}</td><td></td><td></td><td></td></tr>`;
+        if (inv > 0 && i + 1 === invAfter) html += invRow();
       });
-    }
-    // 贪饕血条：额外需要打掉的那部分，单独一行
-    if (inv > 0) {
-      html += `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)}</td>` +
-              `<td class="num">${fmt(inv)}</td><td></td>` +
-              `<td class="num">${fmt(invShare)}</td>` +
-              `<td class="num">${pctOf(invShare, waveTotal)}</td></tr>`;
+    } else if (inv > 0) {
+      html += invRow();
     }
     return html;
   }

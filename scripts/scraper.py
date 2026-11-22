@@ -306,6 +306,7 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
     # 贪饕侵蚀：本体打死后多一条贪饕血条，按等级追加「等效消耗伤害」
     inv_hp = invasion_extra_damage(body, hp_last_phase, len(ratios), invasion_level) if invasion_level else 0.0
     inv_level_eff = int(invasion_level or 0)
+    inv_after = len(ratios)   # 贪饕条出现在第几阶段之后（默认末阶段之后）
 
     # 隐藏贪饕：上游没写 invasion，但实测某一条血打完会额外刷一条贪饕条。
     # 只在「上游没标」时生效，避免和 event.invasion 重复计算。
@@ -313,9 +314,11 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
         spec = (PHASE_OVERRIDE.get(key) or {}).get("hidden_inv")
         if spec:
             inv_hp, inv_level_eff = hidden_invasion_extra(unit, ratios, spec)
+            # 游戏里的血条顺序是「1 → 2 → 贪饕 → 3」，明细要按这个顺序展示
+            inv_after = int(spec.get("phase") or len(ratios))
 
     return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp,
-            "invLevel": inv_level_eff}
+            "invLevel": inv_level_eff, "invAfter": inv_after}
 
 
 def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
@@ -426,6 +429,11 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, p
         inv_hp = parts.get("invHp") or 0.0
         if inv_hp > 0:
             entry["invHp"] = round(inv_hp)
+            # 贪饕条插在第几阶段之后：只在「不是末阶段之后」时才写，
+            # 避免给所有常规贪饕行白增一个字段（默认值就是末阶段）
+            aft = int(parts.get("invAfter") or 0)
+            if aft and len(ph) > 1 and aft != len(ph):
+                entry["invAfter"] = aft
 
     return entry
 
