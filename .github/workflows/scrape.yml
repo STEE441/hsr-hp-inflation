@@ -31,8 +31,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        # 固定主版本，避免上游发布不兼容更新时定时任务突然失效
-        run: pip install "requests>=2.31,<3"
+        # 固定主版本，避免上游发布不兼容更新时定时任务突然失效。
+        # pillow 只给 fetch_assets.py 缩图用（scraper 本身不依赖它）。
+        run: pip install "requests>=2.31,<3" "pillow>=10,<12"
 
       - name: Run scraper
         # scraper.py 内部会：抓取 → 写临时文件 → 调用 validate.py 校验 → 通过才原子替换。
@@ -52,13 +53,20 @@ jobs:
               print('Total data points is 0, refuse to commit', file=sys.stderr); sys.exit(1)
           "
 
+      - name: Fetch missing monster images
+        # 明细卡片用的立绘/属性图标存在 assets/ 里，避免访客每次开详情都回源 nanoka。
+        # 只补缺失文件，已存在的直接跳过；第一次跑会多抓一百多张（约 2~3 分钟）。
+        # 图片只是点缀，脚本内部已把「个别失败」降级为告警（退出码仍为 0），
+        # 不会拦住下面的数据提交；前端还有本地 → CDN → 占位三级兜底。
+        run: python scripts/fetch_assets.py
+
       - name: Commit data changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # index.html 也要加进来：爬虫会在其中同步更新 health_data.js 的缓存破除查询串，
           # 不加的话线上访问者会一直命中旧缓存，看不到新数据。
-          git add data/health_data.json data/health_data.js data/details index.html
+          git add data/health_data.json data/health_data.js data/details index.html assets
           if git diff --cached --quiet; then
             echo "No data changes, skip commit"
           else

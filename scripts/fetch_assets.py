@@ -7,7 +7,12 @@
 - 属性图标：https://static.nanoka.cc/assets/hsr/element/<name>.webp（几百字节，原样存）。
 
 只补缺失文件：日常抓取新增的怪会多出几个文件，重复执行无副作用。
-用法：python scripts/fetch_assets.py
+用法：
+    python scripts/fetch_assets.py            # 日常 / CI：个别失败只告警，退出码仍是 0
+    python scripts/fetch_assets.py --strict    # 手动核对：有任何失败就以退出码 1 结束
+
+图片只是卡片的点缀，前端本来就做了「本地 → CDN → 占位」三级兜底，
+所以抓图失败**不该**让整个每日抓取任务标红、更不该拦住数据提交。
 """
 import glob
 import io
@@ -113,7 +118,11 @@ def main():
     print(f"立绘：新增 {ok} / 已有 {skip} / 失败 {fail}")
     print(f"本地资源：assets/mon {len(os.listdir(MON_DIR))} 个 {total/1024/1024:.2f} MB，"
           f"assets/elem {len(os.listdir(ELEM_DIR))} 个 {etotal/1024:.1f} KB")
-    return 0 if fail == 0 else 1
+    if fail:
+        print(f"⚠ {fail} 个资源抓取失败：前端会自动回落到 nanoka CDN，不影响本次数据更新。"
+              f"需要严格校验时加 --strict。")
+    strict = "--strict" in sys.argv[1:]
+    return 1 if (fail and strict) else 0
 
 
 if __name__ == "__main__":
