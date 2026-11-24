@@ -1089,7 +1089,9 @@ def format_tag_desc(desc, params):
             return txt + "%"
         return f"{v:g}"
 
-    s = re.sub(r"#(\d+)\[i\](%?)", repl, desc)
+    # 占位符有两种写法：#1[i]（整数）与 #1[f1]（浮点/一位小数），都要替换，
+    # 否则页面上会直接露出 "#1[f1]%"（2026-11-24 用户截图里就出现过）。
+    s = re.sub(r"#(\d+)\[[a-z]\d*\](%?)", repl, desc)
     s = re.sub(r"<[^>]+>", "", s)
     return s.replace("\\n", " ").replace("\n", " ").strip()
 

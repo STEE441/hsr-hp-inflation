@@ -424,75 +424,87 @@ table.dl-table {
 .mn-list {
   display: grid; gap: 9px; padding: 9px 0 3px;
   /* 一排放得下几张就放几张：宽屏 2~3 张、窄屏 1 张 */
-  grid-template-columns: repeat(auto-fill, minmax(246px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(262px, 1fr));
 }
-/* 一波只有一只时给宽一点的卡片（440 上限），别拉成整行 */
-.mn-list.one { grid-template-columns: minmax(240px, 440px); }
+/* 一波只有一只时给宽一点的卡片（上限 460），别拉成整行 */
+.mn-list.one { grid-template-columns: minmax(240px, 460px); }
 .mn {
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 11px; padding: 9px 10px; display: grid; gap: 7px;
+  border-radius: 11px; padding: 9px 10px; display: grid; gap: 6px;
   align-content: start;
   /* 卡片里有 11 位数字，min-width:auto 会把 min-content 撑大、导致一排只能放两张 */
   min-width: 0;
 }
-.mn-hd { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 9px; align-items: start; }
-.mn-fig { display: block; }
+.mn-hd { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 9px; align-items: start; }
+.mn-fig { position: relative; display: block; }
 .mn-art {
-  width: 62px; height: 82px; object-fit: cover; object-position: center top;
-  border-radius: 8px; border: 1px solid var(--border); overflow: hidden;
+  width: 88px; height: 112px; object-fit: cover; object-position: center top;
+  border-radius: 9px; border: 1px solid var(--border); overflow: hidden;
   background: radial-gradient(circle at 50% 15%, rgba(148,163,184,.18), rgba(148,163,184,.04));
 }
 /* 立绘加载失败就换成虚线占位框，不显示破图标 —— 数值才是主体，图只是辅助 */
 .mn-fig.noart::before {
-  content: "无立绘"; width: 62px; height: 82px; display: grid; place-items: center;
-  font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 8px;
+  content: "无立绘"; width: 88px; height: 112px; display: grid; place-items: center;
+  font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 9px;
 }
 .mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 16px; }
+/* 数量：贴在立绘右下角的“右边空白处”，小胶囊，不抢眼 */
+.mn-qty {
+  position: absolute; left: calc(100% + 4px); bottom: 1px;
+  font-size: 10px; line-height: 1.5; padding: 0 5px; border-radius: 5px;
+  color: var(--text-dim); background: rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--border); white-space: nowrap;
+}
+.mn-info { min-width: 0; padding-bottom: 15px; }
 .mn-name {
-  font-size: 12.5px; font-weight: 700; line-height: 1.45;
-  word-break: break-word; margin-bottom: 3px;
+  font-size: 13px; font-weight: 700; line-height: 1.45; margin-bottom: 4px;
+  word-break: break-word;
 }
 .mn-name .dl-tag { margin-left: 4px; font-size: 10px; padding: 0 4px; }
-/* 面板与数值都用 flex 自动换行：卡片宽就排一行，窄就折行，不留大片空白 */
-.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; }
-.at { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; min-width: 0; }
-.at em { font-style: normal; color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
+/* 面板 2×2：左列贴着立绘（弱点 / 韧性），右列等级 / 速度 */
+.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+.at { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; min-width: 0; }
+.at em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .at b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.elems { display: inline-flex; gap: 2px; flex-wrap: wrap; }
-.el { width: 15px; height: 15px; display: block; }
+.elems { display: inline-flex; gap: 2px; flex-wrap: nowrap; }
+.el { width: 16px; height: 16px; display: block; }
+/* 数值行：血量在左、占本波在右，两端对齐且强制一行 */
 .mn-nums {
-  display: flex; flex-wrap: wrap; gap: 3px 14px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   border-top: 1px dashed var(--border); padding-top: 6px;
+  white-space: nowrap; overflow: hidden;
 }
-.nu { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11.5px; }
-.nu em { font-style: normal; color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
+.nu { display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; min-width: 0; }
+.nu em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .nu b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mn-subs { display: grid; gap: 2px; }
 .sb {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center;
-  font-size: 11px; padding: 2px 6px 2px 18px; position: relative;
+  display: flex; align-items: baseline; gap: 7px;
+  font-size: 11.5px; padding: 2px 6px 2px 17px; position: relative;
   background: rgba(148, 163, 184, 0.05); border-radius: 5px;
 }
-.sb::before { content: "└"; position: absolute; left: 6px; color: var(--border-strong); }
-.sb .sl { color: var(--text-muted); }
-.sb .snum { font-weight: 600; font-variant-numeric: tabular-nums; }
-.sb .sx, .sb .sp { color: var(--text-dim); font-size: 10.5px; }
-.sb .sp { min-width: 38px; text-align: right; }
+.sb::before { content: "└"; position: absolute; left: 5px; color: var(--border-strong); }
+.sb .sl { color: var(--text-muted); white-space: nowrap; }
+.sb .sp { color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
+.sb .snum { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sb.inv { background: rgba(244, 81, 30, 0.07); }
-.sb.inv .sl, .sb.inv .snum, .sb.inv .sx, .sb.inv .sp { color: var(--warn); }
+.sb.inv .sl, .sb.inv .snum, .sb.inv .sp { color: var(--warn); }
 
 /* 关卡专属 debuff：细虚线框 + 主题色标签，和数值区区分开但不抢眼 */
+/* 名称列宽取最长者，所有描述因此左对齐成一条竖线 */
 .dl-debuffs {
-  display: grid; gap: 6px; margin: 9px 0 10px; padding: 10px 12px;
+  display: grid; grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px; row-gap: 6px; align-items: baseline;
+  margin: 9px 0 10px; padding: 10px 12px;
   border: 1px dashed var(--dl-accent-line, var(--border-strong));
   border-radius: 10px; background: var(--dl-accent-faint, rgba(148, 163, 184, 0.05));
 }
-.db { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 12px; line-height: 1.6; }
 .db-n {
-  font-weight: 700; white-space: nowrap; padding: 0 7px; border-radius: 5px;
+  font-size: 12px; line-height: 1.7; font-weight: 700; white-space: nowrap;
+  padding: 0 7px; border-radius: 5px; justify-self: start;
   color: var(--dl-accent, var(--accent)); background: var(--dl-accent-soft, rgba(56, 189, 248, 0.15));
 }
-.db-d { color: var(--text-muted); }
+.db-d { font-size: 12px; line-height: 1.7; color: var(--text-muted); }
 
 .dl-tag {
   display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
@@ -537,13 +549,13 @@ table.dl-table {
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
-  /* 窄屏：一排放一张卡片，立绘略大一点点，副行只留阶段名 + 数值 */
-  .mn-list { grid-template-columns: 1fr; }
-  .mn-hd { grid-template-columns: 68px minmax(0, 1fr); }
-  .mn-art, .mn-fig.noart::before { width: 68px; height: 90px; }
-  .mn-name { font-size: 12px; }
-  .sb { grid-template-columns: minmax(0, 1fr) auto auto; padding-left: 18px; }
-  .sb .sx { display: none; }
+  /* 窄屏：一排放一张卡片，立绘与字号同步收一档 */
+  .mn-list, .mn-list.one { grid-template-columns: 1fr; }
+  .mn-hd { grid-template-columns: 76px minmax(0, 1fr); }
+  .mn-art, .mn-fig.noart::before { width: 76px; height: 98px; }
+  .mn-name { font-size: 12.5px; }
+  .mn-nums { gap: 8px; }
+  .nu { font-size: 11.5px; }
   .db { grid-template-columns: auto minmax(0, 1fr); font-size: 11.5px; }
 }
 
@@ -864,7 +876,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611242154"></script>
+<script src="data/health_data.js?v=202611242355"></script>
 <script>
 (function () {
   "use strict";
@@ -2112,11 +2124,28 @@ footer a { color: var(--text-muted); }
   //   立绘 https://static.nanoka.cc/assets/hsr/monsterfigure/Monster_5035010.webp
   //   属性 https://static.nanoka.cc/assets/hsr/element/fire.webp
   // 图片挂了就隐藏，不显示破图标（CDN 改路径时只丢图，不影响数值阅读）。
-  const ART_BASE = "https://static.nanoka.cc/assets/hsr/monsterfigure/";
-  const ELEM_BASE = "https://static.nanoka.cc/assets/hsr/element/";
+  // 图片优先用本地副本（scripts/fetch_assets.py 抓的缩略图，几百 KB～2 MB，
+  // 打开详情不用等外网）；本地没有或加载失败时回落到 nanoka 原始资源，再失败就占位。
+  const ART_BASE = "assets/mon/";
+  const ELEM_BASE = "assets/elem/";
+  const ART_CDN = "https://static.nanoka.cc/assets/hsr/monsterfigure/";
+  const ELEM_CDN = "https://static.nanoka.cc/assets/hsr/element/";
   const ELEM_CN = {
     Physical: "物理", Fire: "火", Ice: "冰", Wind: "风",
     Thunder: "雷", Lightning: "雷", Quantum: "量子", Imaginary: "虚数",
+  };
+  // 行内 onerror 调用：本地图缺失 → 回落到 CDN → 再失败就换成「无立绘」占位
+  window.fallbackImg = function (img, cdn, holderSel) {
+    if (img.dataset.fb !== "1") {
+      img.dataset.fb = "1";
+      img.src = cdn;
+      return;
+    }
+    if (holderSel) {
+      const holder = img.closest(holderSel);
+      if (holder) holder.classList.add("noart");
+    }
+    img.remove();
   };
   const fmtTough = v => (v == null || !isFinite(v)) ? "—"
     : (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : Number(v).toFixed(2));
@@ -2139,34 +2168,34 @@ footer a { color: var(--text-muted); }
     const bodyShare = contrib - invShare;
 
     const art = m.art
-      ? `<img class="mn-art" src="${ART_BASE}${m.art}" alt="" loading="lazy" decoding="async"
-             referrerpolicy="no-referrer" onerror="this.closest('.mn-fig').classList.add('noart');this.remove()">`
+      ? `<img class="mn-art" src="${ART_BASE}${m.art}" data-cdn="${ART_CDN}${m.art}" alt=""
+             loading="lazy" decoding="async" referrerpolicy="no-referrer"
+             onerror="fallbackImg(this,'${ART_CDN}${m.art}','.mn-fig')">`
       : `<span class="mn-art ph">—</span>`;
     const elems = (m.weak || []).map(e => {
       const k = String(e).toLowerCase();
       const cn = ELEM_CN[e] || e;
-      return `<img class="el" src="${ELEM_BASE}${k}.webp" alt="${cn}" title="${cn}"
-                   loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`;
+      return `<img class="el" src="${ELEM_BASE}${k}.webp" data-cdn="${ELEM_CDN}${k}.webp" alt="${cn}" title="${cn}"
+                   loading="lazy" referrerpolicy="no-referrer"
+                   onerror="fallbackImg(this,'${ELEM_CDN}${k}.webp')">`;
     }).join("");
 
     let html = `<div class="mn">
       <div class="mn-hd">
-        <div class="mn-fig">${art}</div>
+        <div class="mn-fig">${art}<span class="mn-qty" title="本波数量">×${m.count || 1}</span></div>
         <div class="mn-info">
           <div class="mn-name">${name}${tags.join("")}</div>
           <div class="mn-attrs">
-            <span class="at"><em>等级</em><b>${m.lv != null ? m.lv : "—"}</b></span>
             <span class="at"><em>弱点</em><span class="elems">${elems || "<b>—</b>"}</span></span>
-            <span class="at"><em>速度</em><b>${m.spd != null ? Math.round(Number(m.spd)) : "—"}</b></span>
+            <span class="at"><em>等级</em><b>${m.lv != null ? m.lv : "—"}</b></span>
             <span class="at"><em>韧性</em><b>${fmtTough(m.tough != null ? Number(m.tough) : null)}</b></span>
+            <span class="at"><em>速度</em><b>${m.spd != null ? Math.round(Number(m.spd)) : "—"}</b></span>
           </div>
         </div>
       </div>
       <div class="mn-nums">
-        <span class="nu"><em>单只血量</em><b>${fmtFull(body)}</b></span>
-        <span class="nu"><em>数量</em><b>${m.count || 1}</b></span>
-        <span class="nu"><em>计入</em><b>${fmtFull(bodyShare)}</b></span>
-        <span class="nu"><em>占本波</em><b>${pctOf(bodyShare, waveTotal)}</b></span>
+        <span class="nu"><em>血量</em><b>${fmtFull(body)}</b></span>
+        <span class="nu"><em>占本波</em><b>${pctOf(contrib, waveTotal)}</b></span>
       </div>`;
 
     // 多阶段敌人：逐阶段列出，是「本体」的分解。
@@ -2178,17 +2207,16 @@ footer a { color: var(--text-muted); }
       Math.max(1, Number(m.invAfter) || ph.length || 1),
       Math.max(ph.length, 1)
     );
-    const subRow = (label, v) =>
-      `<div class="sb"><span class="sl">${label}</span><span class="snum">${fmtFull(v)}</span></div>`;
-    const invRow = () => `<div class="sb inv"><span class="sl">贪饕 ${roman(m.inv)}</span>` +
-      `<span class="snum">${fmtFull(inv)}</span>` +
-      `<span class="sx">计入 ${fmtFull(invShare)}</span>` +
-      `<span class="sp">${pctOf(invShare, waveTotal)}</span></div>`;
+    const subRow = (label, v, share) =>
+      `<div class="sb"><span class="sl">${label}</span>` +
+      (share != null ? `<span class="sp">${pctOf(share, waveTotal)}</span>` : "") +
+      `<span class="snum">${fmtFull(v)}</span></div>`;
+    const invRow = () => subRow(`贪饕 ${roman(m.inv)}`, inv, invShare);
 
     let subs = "";
     if (ph.length > 1) {
       ph.forEach((v, i) => {
-        subs += subRow(`第 ${i + 1} 阶段`, v);
+        subs += subRow(`第 ${i + 1} 阶段`, v, v);
         if (inv > 0 && i + 1 === invAfter) subs += invRow();
       });
     } else if (inv > 0) {
@@ -2229,7 +2257,7 @@ footer a { color: var(--text-muted); }
     const list = unit.debuffs || [];
     if (!list.length) return "";
     return `<div class="dl-debuffs">` + list.map(d =>
-      `<div class="db"><span class="db-n">${d.name}</span><span class="db-d">${d.desc || ""}</span></div>`
+      `<span class="db-n">${d.name}</span><span class="db-d">${d.desc || ""}</span>`
     ).join("") + `</div>`;
   }
 
