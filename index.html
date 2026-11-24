@@ -423,11 +423,15 @@ table.dl-table {
 /* ---------- 怪物卡片：同一波次的怪并排，卡片本身尽量紧凑 ---------- */
 .mn-list {
   display: grid; gap: 9px; padding: 9px 0 3px;
-  /* 一排放得下几张就放几张：宽屏 2~3 张、窄屏 1 张 */
-  grid-template-columns: repeat(auto-fill, minmax(262px, 1fr));
+  /* 列数 = 这一波的怪物数（--mn-n，由 waveTable 写进 style）：
+     2 只就两条各占一半、3 只就三条各占三分之一，整行占满不留空轨道 */
+  grid-template-columns: repeat(var(--mn-n, 1), minmax(0, 1fr));
 }
-/* 一波只有一只时给宽一点的卡片（上限 460），别拉成整行 */
+/* 一波只有一只：给宽一点的卡片（上限 460），不拉成整行 */
 .mn-list.one { grid-template-columns: minmax(240px, 460px); }
+/* 容器宽度排不下这一波的全部怪物时，整波切成「一只一行」，不做 2+1 折行
+   （由 layoutCards() 在渲染后与窗口缩放时判定，阈值见 CARD_MIN） */
+.mn-list.stack, .mn-list.stack.one { grid-template-columns: 1fr; }
 .mn {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 11px; padding: 9px 10px; display: grid; gap: 6px;
@@ -435,9 +439,10 @@ table.dl-table {
   /* 卡片里有 11 位数字，min-width:auto 会把 min-content 撑大、导致一排只能放两张 */
   min-width: 0;
 }
-.mn-hd { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 9px; align-items: start; }
+.mn-hd { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--mn-gap, 9px); align-items: start; }
 .mn-fig { position: relative; display: block; }
 .mn-art {
+  display: block;   /* 去掉行内元素的基线空隙，数量胶囊的 bottom:0 才能和立绘底边真正齐平 */
   width: 88px; height: 112px; object-fit: cover; object-position: center top;
   border-radius: 9px; border: 1px solid var(--border); overflow: hidden;
   background: radial-gradient(circle at 50% 15%, rgba(148,163,184,.18), rgba(148,163,184,.04));
@@ -448,25 +453,37 @@ table.dl-table {
   font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 9px;
 }
 .mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 16px; }
-/* 数量：贴在立绘右下角的“右边空白处”，小胶囊，不抢眼 */
+/* 数量：贴在立绘右下侧的小胶囊。底边与立绘底边齐平，
+   左边距 = 立绘宽 + 列间距，正好对齐上面第一列（弱点/韧性）的左边缘。
+   配色跟随当前玩法的主题色，和「N 阶段」标签同源，别用灰的（看不清）。 */
 .mn-qty {
-  position: absolute; left: calc(100% + 4px); bottom: 1px;
-  font-size: 10px; line-height: 1.5; padding: 0 5px; border-radius: 5px;
-  color: var(--text-dim); background: rgba(148, 163, 184, 0.12);
-  border: 1px solid var(--border); white-space: nowrap;
+  position: absolute; left: calc(100% + var(--mn-gap, 9px)); bottom: 0;
+  font-size: 11px; line-height: 1.45; padding: 0 6px; border-radius: 5px;
+  color: var(--dl-accent, var(--accent));
+  background: var(--dl-accent-soft, rgba(56, 189, 248, 0.18));
+  border: 1px solid var(--dl-accent-line, rgba(56, 189, 248, 0.5));
+  font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  letter-spacing: 0.2px;
 }
-.mn-info { min-width: 0; padding-bottom: 15px; }
+.mn-info { min-width: 0; padding-bottom: 20px; }
 .mn-name {
   font-size: 13px; font-weight: 700; line-height: 1.45; margin-bottom: 4px;
   word-break: break-word;
 }
 .mn-name .dl-tag { margin-left: 4px; font-size: 10px; padding: 0 4px; }
 /* 面板 2×2：左列贴着立绘（弱点 / 韧性），右列等级 / 速度 */
-.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+/* 面板两列按内容宽度排（max-content），不要 1fr 平分：
+   卡片在窄屏竖排时会被拉得很宽，1fr 会把「等级」推到卡片中线，和左边的弱点/韧性断开 */
+.mn-attrs {
+  display: grid; grid-template-columns: max-content max-content;
+  column-gap: 14px; row-gap: 3px; justify-content: start;
+}
 .at { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; min-width: 0; }
-.at em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.at em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; flex: 0 0 auto; }
 .at b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.elems { display: inline-flex; gap: 2px; flex-wrap: nowrap; }
+/* 弱点图标允许折行：卡片窄时（一波 3 只、屏宽 860 左右）三个图标塞不进一格，
+   宁可换到第二行，也不能溢出到右边「等级」那一列去 */
+.elems { display: inline-flex; gap: 2px; flex-wrap: wrap; align-content: center; min-width: 0; }
 .el { width: 16px; height: 16px; display: block; }
 /* 数值行：血量在左、占本波在右，两端对齐且强制一行 */
 .mn-nums {
@@ -552,6 +569,7 @@ table.dl-table {
   /* 窄屏：一排放一张卡片，立绘与字号同步收一档 */
   .mn-list, .mn-list.one { grid-template-columns: 1fr; }
   .mn-hd { grid-template-columns: 76px minmax(0, 1fr); }
+  .mn-qty { font-size: 10.5px; }
   .mn-art, .mn-fig.noart::before { width: 76px; height: 98px; }
   .mn-name { font-size: 12.5px; }
   .mn-nums { gap: 8px; }
@@ -2207,11 +2225,12 @@ footer a { color: var(--text-muted); }
       Math.max(1, Number(m.invAfter) || ph.length || 1),
       Math.max(ph.length, 1)
     );
-    const subRow = (label, v, share) =>
-      `<div class="sb"><span class="sl">${label}</span>` +
+    const subRow = (label, v, share, cls) =>
+      `<div class="sb${cls ? " " + cls : ""}"><span class="sl">${label}</span>` +
       (share != null ? `<span class="sp">${pctOf(share, waveTotal)}</span>` : "") +
       `<span class="snum">${fmtFull(v)}</span></div>`;
-    const invRow = () => subRow(`贪饕 ${roman(m.inv)}`, inv, invShare);
+    // 贪饕条必须带 inv 类：不带就会套用普通副行的灰底灰字，看不出是「额外一条血」
+    const invRow = () => subRow(`贪饕 ${roman(m.inv)}`, inv, invShare, "inv");
 
     let subs = "";
     if (ph.length > 1) {
@@ -2253,6 +2272,24 @@ footer a { color: var(--text-muted); }
   }
 
   // 关卡专属 debuff（异相仲裁每个关卡自带，如「血嗜」「残秽+」）
+  // 卡片最小可用宽度：立绘 88 + 内边距 20 + 列间距 9 + 面板两列。
+  // 实测 288 才能让「弱点」的三个图标排在一行（再窄就要折行，卡片之间会参差），
+  // 所以低于这个宽度就整波竖排，不做「2 张 + 1 张换行」。
+  const CARD_MIN = 288, CARD_GAP = 9;
+
+  // 一波的怪物要么全部排在一行、要么全部竖排 —— 不允许出现「2 张 + 1 张换行」，
+  // 那种排法在窄屏上会让人误以为第三只属于下一波。
+  function layoutCards(root) {
+    const sc = root || document.getElementById("detail-body") || document;
+    sc.querySelectorAll(".mn-list").forEach(list => {
+      const n = Number(list.dataset.n || list.children.length || 1);
+      if (n <= 1) { list.classList.remove("stack"); return; }
+      const avail = list.clientWidth || (list.parentElement || {}).clientWidth || 0;
+      const need = n * CARD_MIN + (n - 1) * CARD_GAP;
+      list.classList.toggle("stack", avail > 0 && avail + 0.5 < need);
+    });
+  }
+
   function debuffBlock(unit) {
     const list = unit.debuffs || [];
     if (!list.length) return "";
@@ -2275,7 +2312,7 @@ footer a { color: var(--text-muted); }
           <span class="pct">${scope} ${pctOf(w.hp, unitTotal)}</span>
         </div>
         ${waveRuleNote(w)}
-        <div class="mn-list${(w.monsters || []).length === 1 ? " one" : ""}">${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</div>
+        <div class="mn-list${(w.monsters || []).length === 1 ? " one" : ""}" data-n="${(w.monsters || []).length || 1}" style="--mn-n:${(w.monsters || []).length || 1}">${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</div>
       </div>`).join("");
   }
 
@@ -2363,6 +2400,9 @@ footer a { color: var(--text-muted); }
           </div>`).join("")}
       </div>`;
     }).join("");
+
+    // 布局要等 DOM 落地、拿到真实容器宽度后才能判断；用 rAF 保证这一刻宽度已确定
+    requestAnimationFrame(() => layoutCards(body));
   }
 
   async function openDetail(index) {
@@ -2480,6 +2520,9 @@ footer a { color: var(--text-muted); }
       renderMainChart();
       renderCompare();
     }
+    // 明细弹层开着的时候，窗口变宽/变窄要重新决定「一波几张并排」
+    const mask = document.getElementById("detail-modal");
+    if (mask && !mask.hidden) layoutCards(document.getElementById("detail-body"));
   }
 
   let resizeTimer = null;
