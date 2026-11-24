@@ -402,6 +402,10 @@ table.dl-table {
 .dl-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .dl-table td:first-child { white-space: normal; word-break: break-word; }
 .dl-row td { border-bottom: 1px solid var(--row-line); }
+/* 明细是要拿来核对的：怪物名与血量数字略加粗，主行 600 / 副行 500 */
+.dl-row td:first-child { font-weight: 600; }
+.dl-row td.num, .dl-sub td.num { font-weight: 600; }
+.dl-sub td.sub { font-weight: 500; }
 
 /* 阶段 / 贪饕副行：主行的分项分解，不参与「计入」列的汇总 */
 .dl-sub td {
@@ -435,12 +439,14 @@ table.dl-table {
   /* 手机竖屏：图宽只有 ~340，420 高会拉成瘦长条，压到 300 比例更舒展 */
   .chart { height: 300px; }
   .dl-table th, .dl-table td { padding: 5px 6px; font-size: 12px; }
-  .dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 40%; }
-  .dl-table th:nth-child(2), .dl-table td:nth-child(2) { width: 26%; }
-  .dl-table th:nth-child(3), .dl-table td:nth-child(3) { width: 12%; }
-  .dl-table th:nth-child(4), .dl-table td:nth-child(4) { width: 22%; }
+  .dl-table th:nth-child(1), .dl-table td:nth-child(1) { width: 33%; }
+  .dl-table th:nth-child(2), .dl-table td:nth-child(2) { width: 25%; }
+  .dl-table th:nth-child(3), .dl-table td:nth-child(3) { width: 10%; }
+  .dl-table th:nth-child(4), .dl-table td:nth-child(4) { width: 32%; }
   /* 窄屏优先保住「敌人 / 单只 / 数量 / 计入」，占比可自行用计入÷波次推算 */
   .dl-table th:nth-child(5), .dl-table td:nth-child(5) { display: none; }
+  /* 明细改成完整千分位后，11 位数字在 375px 下会顶到相邻列：数值列单独缩一档 */
+  .dl-table td.num, .dl-table th.num { font-size: 11px; letter-spacing: -0.2px; }
   .dl-wave-head { padding: 6px 8px; }
   .dl-wave-head .total { font-size: 15px; }
   .dl-group-head, .dl-stage-head { font-size: 15px; padding: 8px 10px; }
@@ -775,7 +781,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611222140"></script>
+<script src="data/health_data.js?v=202611242116"></script>
 <script>
 (function () {
   "use strict";
@@ -896,6 +902,12 @@ footer a { color: var(--text-muted); }
     if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + " 亿";
     if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + " 万";
     return Math.round(n).toLocaleString();
+  }
+  // 明细里的「单只血量 / 各阶段 / 贪饕条」要用完整数值核对，不能压缩成亿元：
+  // 千分位逗号 + 四舍五入到整数。波次/路/组的汇总仍走 fmt()。
+  function fmtFull(n) {
+    if (n == null || !isFinite(n)) return "—";
+    return Math.round(n).toLocaleString("en-US");
   }
   // 轴刻度专用（更短）：去掉小数尾零和单位前空格。
   // 手机屏宽只有 375，Y 轴标签「8000.00 万」会把绘图区挤到一半都不到，
@@ -2032,9 +2044,9 @@ footer a { color: var(--text-muted); }
 
     let html = `<tr class="dl-row">
       <td>${name}${tags.join("")}</td>
-      <td class="num">${fmt(body)}</td>
+      <td class="num">${fmtFull(body)}</td>
       <td class="num">${m.count || 1}</td>
-      <td class="num">${fmt(bodyShare)}</td>
+      <td class="num">${fmtFull(bodyShare)}</td>
       <td class="num">${pctOf(bodyShare, waveTotal)}</td>
     </tr>`;
 
@@ -2048,14 +2060,14 @@ footer a { color: var(--text-muted); }
       Math.max(ph.length, 1)
     );
     const invRow = () => `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)}</td>` +
-      `<td class="num">${fmt(inv)}</td><td></td>` +
-      `<td class="num">${fmt(invShare)}</td>` +
+      `<td class="num">${fmtFull(inv)}</td><td></td>` +
+      `<td class="num">${fmtFull(invShare)}</td>` +
       `<td class="num">${pctOf(invShare, waveTotal)}</td></tr>`;
 
     if (ph.length > 1) {
       ph.forEach((v, i) => {
         html += `<tr class="dl-sub"><td class="sub">第 ${i + 1} 阶段</td>` +
-                `<td class="num">${fmt(v)}</td><td></td><td></td><td></td></tr>`;
+                `<td class="num">${fmtFull(v)}</td><td></td><td></td><td></td></tr>`;
         if (inv > 0 && i + 1 === invAfter) html += invRow();
       });
     } else if (inv > 0) {

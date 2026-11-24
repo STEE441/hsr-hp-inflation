@@ -391,6 +391,21 @@ def monster_name(mid, tables):
     return m.get("zh") or m.get("en") or ""
 
 
+def cumulative_round(values):
+    """按「累计取整」把一串小数变成整数，保证 Σ(结果) == round(Σ(原值))。
+
+    逐项独立 round 会在末位攒误差：三个阶段各带 .25 时，分别取整合计可能比
+    总量少 1，明细里「阶段相加 ≠ 单只血量」会被当成算错（用户就是要拿它对账）。
+    """
+    out, acc, prev = [], 0.0, 0
+    for v in values:
+        acc += float(v)
+        cur = int(round(acc))
+        out.append(cur - prev)
+        prev = cur
+    return out
+
+
 def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, parts=None):
     """构造一只怪物的明细条目（供前端核对「总血量是怎么组成的」）
 
@@ -425,10 +440,16 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, p
         ph = parts.get("phaseHp") or []
         if len(ph) > 1:
             entry["phases"] = len(ph)
-            entry["phaseHp"] = [round(v) for v in ph]
+            entry["phaseHp"] = cumulative_round(ph)
         inv_hp = parts.get("invHp") or 0.0
         if inv_hp > 0:
-            entry["invHp"] = round(inv_hp)
+            # 明细要能直接相加核对：让「各阶段之和 + 贪饕 = 单只总量」严格成立。
+            # 各阶段用累计取整（见 cumulative_round），贪饕条取「总量 − 阶段之和」的差额，
+            # 否则三处各自 round 会出现 ±1 的窟窿（如 112,452,872 + 25,334,210 ≠ 137,787,083）。
+            if len(ph) > 1:
+                entry["invHp"] = entry["hp"] - sum(entry["phaseHp"])
+            else:
+                entry["invHp"] = round(inv_hp)
             # 贪饕条插在第几阶段之后：只在「不是末阶段之后」时才写，
             # 避免给所有常规贪饕行白增一个字段（默认值就是末阶段）
             aft = int(parts.get("invAfter") or 0)
