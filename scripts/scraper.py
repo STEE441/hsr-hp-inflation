@@ -228,11 +228,15 @@ def build_lookup_tables(ver):
     infinite_elite = load_reference(ver, "InfiniteEliteGroup.json")
 
     hard_map = {}
+    hard_rec = {}
     for r in hard_level:
         hard_map[(r["HardLevelGroup"], r["Level"])] = r.get("HPRatio", 1)
+        hard_rec[(r["HardLevelGroup"], r["Level"])] = r
 
     elite_map = {r["EliteGroup"]: r.get("HPRatio", 1) for r in elite_group}
     infinite_elite_map = {r["EliteGroup"]: r.get("HPRatio", 1) for r in infinite_elite}
+    elite_rec = {r["EliteGroup"]: r for r in elite_group}
+    inf_elite_rec = {r["EliteGroup"]: r for r in infinite_elite}
 
     return {
         "monstervalue": monstervalue,
@@ -240,6 +244,10 @@ def build_lookup_tables(ver):
         "hard_map": hard_map,
         "elite_map": elite_map,
         "infinite_elite_map": infinite_elite_map,
+        # 面板用的完整记录：速度/韧性要按 EliteGroup.SpeedRatio / HardLevelGroup.StanceRatio 算
+        "hard_rec": hard_rec,
+        "elite_rec": elite_rec,
+        "inf_elite_rec": inf_elite_rec,
     }
 
 
@@ -318,7 +326,76 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
             inv_after = int(spec.get("phase") or len(ratios))
 
     return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp,
-            "invLevel": inv_level_eff, "invAfter": inv_after}
+            "invLevel": inv_level_eff, "invAfter": inv_after,
+            "lv": int(level or 0),
+            "spd": monster_speed(mv, m, elite_gid, hard_g, level, tables, is_infinite),
+            "tough": monster_toughness(mv, m, elite_gid, hard_g, level, tables, is_infinite),
+            "weak": monster_weak(mid, m, tables),
+            "art": monster_art(mid, tables)}
+
+
+def _panel_ratio(rec, field):
+    """从 EliteGroup / HardLevelGroup 记录里取倍率，缺失按 1 处理"""
+    if not rec:
+        return 1.0
+    v = rec.get(field)
+    try:
+        return float(v) if v is not None else 1.0
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def _panel_groups(elite_gid, hard_g, level, tables, is_infinite):
+    """面板用的 (精英组记录, 难度组记录)，与血量取同一套表"""
+    er = tables["elite_rec"].get(elite_gid)
+    if er is None and is_infinite:
+        er = tables["inf_elite_rec"].get(elite_gid)
+    hr = tables["hard_rec"].get((hard_g, level))
+    return er, hr
+
+
+def monster_speed(mv, m, elite_gid, hard_g, level, tables, is_infinite=False):
+    """速度 = SpeedBase × 个体倍率 × 精英组 SpeedRatio × 难度组 SpeedRatio + 个体附加值
+
+    与 nanoka 怪物详情页同一套公式（源码 node 24：speed_base × speed_modify_ratio ×
+    elite.SpeedRatio × hard.SpeedRatio + speed_modify_value）。
+    """
+    er, hr = _panel_groups(elite_gid, hard_g, level, tables, is_infinite)
+    base = float(mv.get("SpeedBase") or 0)
+    mod = float((m or {}).get("SpeedModifyRatio") or 1)
+    add = float((m or {}).get("SpeedModifyValue") or 0)
+    return base * mod * _panel_ratio(er, "SpeedRatio") * _panel_ratio(hr, "SpeedRatio") + add
+
+
+def monster_toughness(mv, m, elite_gid, hard_g, level, tables, is_infinite=False):
+    """韧性（Toughness）= StanceBase × 个体倍率 × 精英组 StanceRatio × 难度组 StanceRatio + 附加值"""
+    er, hr = _panel_groups(elite_gid, hard_g, level, tables, is_infinite)
+    base = float(mv.get("StanceBase") or 0)
+    mod = float((m or {}).get("StanceModifyRatio") or 1)
+    add = float((m or {}).get("StanceModifyValue") or 0)
+    return base * mod * _panel_ratio(er, "StanceRatio") * _panel_ratio(hr, "StanceRatio") + add
+
+
+def monster_weak(mid, m, tables):
+    """弱点属性：优先用 child 的 StanceWeakList，退回怪物表的 weak"""
+    seq = (m or {}).get("StanceWeakList")
+    if not isinstance(seq, list) or not seq:
+        info = tables["monster"].get(str(mid)) or tables["monster"].get(str(mid)[:7]) or {}
+        seq = info.get("weak") or []
+    return [str(x) for x in seq if x]
+
+
+def monster_art(mid, tables):
+    """立绘文件名（nanoka 的静态资源都是 .webp）：
+    monster.icon = "SpriteOutput/MonsterFigure/Monster_5035010.png" → "Monster_5035010.webp"
+    """
+    key = str(mid)
+    info = tables["monster"].get(key) or tables["monster"].get(key[:7]) or {}
+    icon = str(info.get("icon") or "")
+    if not icon:
+        return ""
+    name = icon.split("/")[-1]
+    return name[:-4] + ".webp" if name.lower().endswith(".png") else name
 
 
 def calc_monster_hp(mid, elite_gid, hard_g, level, tables, is_infinite=False, infinite_bonus=0.0, invasion_level=0):
@@ -455,6 +532,18 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, p
             aft = int(parts.get("invAfter") or 0)
             if aft and len(ph) > 1 and aft != len(ph):
                 entry["invAfter"] = aft
+
+        # 面板信息：等级 / 弱点 / 速度 / 韧性 / 立绘文件名（前端拼 nanoka 静态资源 URL）
+        if parts.get("lv"):
+            entry["lv"] = int(parts["lv"])
+        if parts.get("weak"):
+            entry["weak"] = list(parts["weak"])[:6]
+        if parts.get("art"):
+            entry["art"] = parts["art"]
+        if parts.get("spd"):
+            entry["spd"] = round(float(parts["spd"]), 1)
+        if parts.get("tough"):
+            entry["tough"] = round(float(parts["tough"]), 2)
 
     return entry
 
@@ -975,6 +1064,47 @@ def calc_pf_lane_hp_fallback(ev_list, source, tables, detail=None):
     return total
 
 
+def format_tag_desc(desc, params):
+    """把 debuff 描述里的 #1[i]% 占位符换成实际数值，并去掉富文本标签。
+
+    上游描述形如「损失自身最大生命值<color=#f29e38ff><unbreak>#1[i]%</unbreak></color>」，
+    param = [0.5]。带 % 的占位符按百分比换算（0.5 → 50%），不带的直接取值。
+    """
+    if not isinstance(desc, str):
+        return ""
+
+    def repl(m):
+        idx = int(m.group(1)) - 1
+        is_pct = m.group(2) == "%"
+        val = params[idx] if 0 <= idx < len(params) else None
+        if val is None:
+            return "?"
+        try:
+            v = float(val)
+        except (TypeError, ValueError):
+            return str(val)
+        if is_pct:
+            v *= 100
+            txt = f"{v:.0f}" if abs(v - round(v)) < 0.05 else f"{v:.2f}".rstrip("0").rstrip(".")
+            return txt + "%"
+        return f"{v:g}"
+
+    s = re.sub(r"#(\d+)\[i\](%?)", repl, desc)
+    s = re.sub(r"<[^>]+>", "", s)
+    return s.replace("\\n", " ").replace("\n", " ").strip()
+
+
+def tag_debuffs(group):
+    """异相仲裁每个关卡自带的专属 debuff（tag_list）→ [{name, desc}]"""
+    out = []
+    for t in ((group or {}).get("tag_list") or []):
+        name = clean_text(t.get("name") or "")
+        if not name:
+            continue
+        out.append({"name": name, "desc": format_tag_desc(t.get("desc") or "", t.get("param") or [])})
+    return out
+
+
 # 上游 peak/version.json 有时会把「刚进测试服、还没定档」的赛季塞进 "unknown" 桶。
 # 不登记就不入表，只在日志里提示；登记后按 赛季ID → 版本号 入表。
 # 2026-11-20：赛季 12（喜笑与悲泣 / 贪欢的神颅）登记为 4.8 —— 前端默认只显示正式服，
@@ -1019,7 +1149,8 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
             knights += khp
             knight_details.append(round(khp))
             if knight_units is not None:
-                knight_units.append({"label": f"骑士 {ki}", "hp": round(khp), "waves": kw})
+                knight_units.append({"label": f"骑士 {ki}", "hp": round(khp), "waves": kw,
+                                     "debuffs": tag_debuffs(knight)})
 
         # 王棋
         king = 0.0
@@ -1049,9 +1180,11 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
                 "groups": [
                     {"key": "knights", "label": "三骑士", "hp": round(knights), "units": knight_units},
                     {"key": "king", "label": "王棋", "hp": round(king),
-                     "units": [{"label": "王棋", "hp": round(king), "waves": king_waves}]},
+                     "units": [{"label": "王棋", "hp": round(king), "waves": king_waves,
+                                "debuffs": tag_debuffs(detail.get("boss_level"))}]},
                     {"key": "kingAbyss", "label": "绝境王棋", "hp": round(king_abyss),
-                     "units": [{"label": "绝境王棋", "hp": round(king_abyss), "waves": abyss_waves}]},
+                     "units": [{"label": "绝境王棋", "hp": round(king_abyss), "waves": abyss_waves,
+                                "debuffs": tag_debuffs(detail.get("boss_config"))}]},
                 ],
             }
 

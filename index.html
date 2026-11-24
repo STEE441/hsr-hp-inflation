@@ -419,6 +419,75 @@ table.dl-table {
 .dl-sub.inv td { color: var(--warn); background: rgba(244, 81, 30, 0.06); }
 .dl-sub:last-child td { border-bottom: 1px solid var(--row-line); }
 
+/* ---------- 怪物卡片：立绘 + 面板（等级/弱点/速度/韧性）+ 数值 ---------- */
+.mn-list { display: grid; gap: 10px; padding: 10px 0 4px; }
+.mn {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; display: grid; gap: 10px;
+}
+.mn-top { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 14px; align-items: start; }
+.mn-fig { display: grid; gap: 6px; justify-items: center; }
+.mn-art {
+  width: 104px; height: 136px; object-fit: cover; object-position: center top;
+  border-radius: 10px; border: 1px solid var(--border); overflow: hidden;
+  background: radial-gradient(circle at 50% 15%, rgba(148,163,184,.18), rgba(148,163,184,.04));
+}
+/* 立绘加载失败就换成虚线占位框，不显示破图标 —— 数值才是主体，图只是辅助 */
+.mn-fig.noart::before {
+  content: "无立绘"; width: 104px; height: 136px; display: grid; place-items: center;
+  font-size: 11px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 10px;
+}
+.mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 18px; }
+.mn-name {
+  font-size: 13px; font-weight: 700; text-align: center; line-height: 1.5;
+  word-break: break-word;
+}
+.mn-name .dl-tag { margin-left: 4px; }
+.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 16px; }
+.at { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.at em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.at b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.elems { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.el { width: 18px; height: 18px; display: block; }
+.mn-nums {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px;
+  border-top: 1px dashed var(--border); padding-top: 9px;
+}
+.nu { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; }
+.nu em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.nu b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mn-subs { display: grid; gap: 3px; }
+.sb {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center;
+  font-size: 12px; padding: 3px 8px 3px 22px; position: relative;
+  background: rgba(148, 163, 184, 0.05); border-radius: 6px;
+}
+.sb::before { content: "└"; position: absolute; left: 8px; color: var(--border-strong); }
+.sb .sl { color: var(--text-muted); }
+.sb .snum { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sb .sx, .sb .sp { color: var(--text-dim); font-size: 11px; }
+.sb .sp { min-width: 42px; text-align: right; }
+.sb.inv { background: rgba(244, 81, 30, 0.07); }
+.sb.inv .sl, .sb.inv .snum, .sb.inv .sx, .sb.inv .sp { color: var(--warn); }
+
+/* 关卡专属 debuff：细虚线框 + 主题色标签，和数值区区分开但不抢眼 */
+.dl-debuffs {
+  display: grid; gap: 6px; margin: 9px 0 10px; padding: 10px 12px;
+  border: 1px dashed var(--dl-accent-line, var(--border-strong));
+  border-radius: 10px; background: var(--dl-accent-faint, rgba(148, 163, 184, 0.05));
+}
+.db { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 12px; line-height: 1.6; }
+.db-n {
+  font-weight: 700; white-space: nowrap; padding: 0 7px; border-radius: 5px;
+  color: var(--dl-accent, var(--accent)); background: var(--dl-accent-soft, rgba(56, 189, 248, 0.15));
+}
+.db-d { color: var(--text-muted); }
+/* 宽屏：面板与数值各排一行四列，和上面「波次 / 合计」的横向节奏一致 */
+@media (min-width: 760px) {
+  .mn-attrs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mn-nums { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 .dl-tag {
   display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
   margin-left: 6px; vertical-align: 1px;
@@ -462,6 +531,18 @@ table.dl-table {
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
+  /* 窄屏：立绘缩到 84×112，面板与数值各两列；副行的「计入」让位给阶段名与数值 */
+  .mn-top { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
+  .mn-art { width: 84px; height: 112px; }
+  .mn-name { font-size: 12px; }
+  .mn-attrs { gap: 6px 10px; }
+  .mn-nums { gap: 5px 10px; }
+  .nu { font-size: 11.5px; gap: 5px; }
+  /* 窄屏两列时，标签与数值挨着读更顺；宽屏才让数值右对齐成列 */
+  .nu { justify-content: flex-start; }
+  .sb { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; font-size: 11.5px; padding-left: 20px; }
+  .sb .sx { display: none; }
+  .db { grid-template-columns: auto minmax(0, 1fr); font-size: 11.5px; }
 }
 
 /* ---------- Section ---------- */
@@ -781,7 +862,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611242116"></script>
+<script src="data/health_data.js?v=202611242154"></script>
 <script>
 (function () {
   "use strict";
@@ -2025,6 +2106,19 @@ footer a { color: var(--text-muted); }
   const ROMAN = ["", "I", "II", "III", "IV"];
   const roman = n => ROMAN[Number(n)] || String(n);
 
+  // 立绘与属性图标都直接取 nanoka 的静态资源（不下载、不转存）：
+  //   立绘 https://static.nanoka.cc/assets/hsr/monsterfigure/Monster_5035010.webp
+  //   属性 https://static.nanoka.cc/assets/hsr/element/fire.webp
+  // 图片挂了就隐藏，不显示破图标（CDN 改路径时只丢图，不影响数值阅读）。
+  const ART_BASE = "https://static.nanoka.cc/assets/hsr/monsterfigure/";
+  const ELEM_BASE = "https://static.nanoka.cc/assets/hsr/element/";
+  const ELEM_CN = {
+    Physical: "物理", Fire: "火", Ice: "冰", Wind: "风",
+    Thunder: "雷", Lightning: "雷", Quantum: "量子", Imaginary: "虚数",
+  };
+  const fmtTough = v => (v == null || !isFinite(v)) ? "—"
+    : (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : Number(v).toFixed(2));
+
   function monsterRow(m, waveTotal) {
     const tags = [];
     if (Number(m.phases) > 1) tags.push(`<span class="dl-tag ph">${m.phases} 阶段</span>`);
@@ -2042,13 +2136,33 @@ footer a { color: var(--text-muted); }
     const invShare = (hpAll > 0 && inv > 0) ? Math.round(contrib * inv / hpAll) : 0;
     const bodyShare = contrib - invShare;
 
-    let html = `<tr class="dl-row">
-      <td>${name}${tags.join("")}</td>
-      <td class="num">${fmtFull(body)}</td>
-      <td class="num">${m.count || 1}</td>
-      <td class="num">${fmtFull(bodyShare)}</td>
-      <td class="num">${pctOf(bodyShare, waveTotal)}</td>
-    </tr>`;
+    const art = m.art
+      ? `<img class="mn-art" src="${ART_BASE}${m.art}" alt="" loading="lazy" decoding="async"
+             referrerpolicy="no-referrer" onerror="this.closest('.mn-fig').classList.add('noart');this.remove()">`
+      : `<span class="mn-art ph">—</span>`;
+    const elems = (m.weak || []).map(e => {
+      const k = String(e).toLowerCase();
+      const cn = ELEM_CN[e] || e;
+      return `<img class="el" src="${ELEM_BASE}${k}.webp" alt="${cn}" title="${cn}"
+                   loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`;
+    }).join("");
+
+    let html = `<div class="mn">
+      <div class="mn-top">
+        <div class="mn-fig">${art}<div class="mn-name">${name}${tags.join("")}</div></div>
+        <div class="mn-attrs">
+          <span class="at"><em>等级</em><b>${m.lv != null ? m.lv : "—"}</b></span>
+          <span class="at"><em>弱点</em><span class="elems">${elems || "<b>—</b>"}</span></span>
+          <span class="at"><em>速度</em><b>${m.spd != null ? Math.round(Number(m.spd)) : "—"}</b></span>
+          <span class="at"><em>韧性</em><b>${fmtTough(m.tough != null ? Number(m.tough) : null)}</b></span>
+        </div>
+      </div>
+      <div class="mn-nums">
+        <span class="nu"><em>单只血量</em><b>${fmtFull(body)}</b></span>
+        <span class="nu"><em>数量</em><b>${m.count || 1}</b></span>
+        <span class="nu"><em>计入</em><b>${fmtFull(bodyShare)}</b></span>
+        <span class="nu"><em>占本波</em><b>${pctOf(bodyShare, waveTotal)}</b></span>
+      </div>`;
 
     // 多阶段敌人：逐阶段列出，是「本体」的分解。
     // 贪饕条按 m.invAfter 插在「第 N 阶段之后」——贪欢的神颅在游戏里是
@@ -2059,21 +2173,25 @@ footer a { color: var(--text-muted); }
       Math.max(1, Number(m.invAfter) || ph.length || 1),
       Math.max(ph.length, 1)
     );
-    const invRow = () => `<tr class="dl-sub inv"><td class="sub">贪饕 ${roman(m.inv)}</td>` +
-      `<td class="num">${fmtFull(inv)}</td><td></td>` +
-      `<td class="num">${fmtFull(invShare)}</td>` +
-      `<td class="num">${pctOf(invShare, waveTotal)}</td></tr>`;
+    const subRow = (label, v) =>
+      `<div class="sb"><span class="sl">${label}</span><span class="snum">${fmtFull(v)}</span></div>`;
+    const invRow = () => `<div class="sb inv"><span class="sl">贪饕 ${roman(m.inv)}</span>` +
+      `<span class="snum">${fmtFull(inv)}</span>` +
+      `<span class="sx">计入 ${fmtFull(invShare)}</span>` +
+      `<span class="sp">${pctOf(invShare, waveTotal)}</span></div>`;
 
+    let subs = "";
     if (ph.length > 1) {
       ph.forEach((v, i) => {
-        html += `<tr class="dl-sub"><td class="sub">第 ${i + 1} 阶段</td>` +
-                `<td class="num">${fmtFull(v)}</td><td></td><td></td><td></td></tr>`;
-        if (inv > 0 && i + 1 === invAfter) html += invRow();
+        subs += subRow(`第 ${i + 1} 阶段`, v);
+        if (inv > 0 && i + 1 === invAfter) subs += invRow();
       });
     } else if (inv > 0) {
-      html += invRow();
+      subs += invRow();
     }
-    return html;
+    if (subs) html += `<div class="mn-subs">${subs}</div>`;
+
+    return html + `</div>`;
   }
 
   // 虚构叙事的波次口径不是「全部加起来」，不同波次规则不同，直接写在波次头下面，
@@ -2101,6 +2219,15 @@ footer a { color: var(--text-muted); }
     return "";
   }
 
+  // 关卡专属 debuff（异相仲裁每个关卡自带，如「血嗜」「残秽+」）
+  function debuffBlock(unit) {
+    const list = unit.debuffs || [];
+    if (!list.length) return "";
+    return `<div class="dl-debuffs">` + list.map(d =>
+      `<div class="db"><span class="db-n">${d.name}</span><span class="db-d">${d.desc || ""}</span></div>`
+    ).join("") + `</div>`;
+  }
+
   function waveTable(unit, unitTotal, scopeLabel) {
     const scope = scopeLabel || "占本组";
     const waves = unit.waves || [];
@@ -2115,10 +2242,7 @@ footer a { color: var(--text-muted); }
           <span class="pct">${scope} ${pctOf(w.hp, unitTotal)}</span>
         </div>
         ${waveRuleNote(w)}
-        <table class="dl-table">
-          <thead><tr><th>敌人</th><th class="num">单只血量</th><th class="num">数量</th><th class="num">计入</th><th class="num">占本波</th></tr></thead>
-          <tbody>${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</tbody>
-        </table>
+        <div class="mn-list">${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</div>
       </div>`).join("");
   }
 
@@ -2190,6 +2314,7 @@ footer a { color: var(--text-muted); }
         const u = units[0] || g;
         return `<div class="dl-group">
           <div class="dl-group-head">${g.label}<span class="pct">${fmt(g.hp)}${hideShare ? "" : `<small>占本期 ${pctOf(g.hp, total)}</small>`}</span></div>
+          ${debuffBlock(u)}
           ${waveTable(u, g.hp, "占本组")}
         </div>`;
       }
@@ -2200,6 +2325,7 @@ footer a { color: var(--text-muted); }
         <div class="dl-group-note">${g.label}（${units.length} 个关卡）<span class="pct">合计 ${fmt(g.hp)}</span></div>
         ${units.map(u => `<div class="dl-stage">
             <div class="dl-stage-head">${u.label}<span class="pct">${fmt(u.hp)}</span></div>
+            ${debuffBlock(u)}
             ${waveTable(u, u.hp, "占本关")}
           </div>`).join("")}
       </div>`;
