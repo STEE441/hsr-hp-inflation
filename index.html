@@ -420,53 +420,64 @@ table.dl-table {
 .dl-sub:last-child td { border-bottom: 1px solid var(--row-line); }
 
 /* ---------- 怪物卡片：立绘 + 面板（等级/弱点/速度/韧性）+ 数值 ---------- */
-.mn-list { display: grid; gap: 10px; padding: 10px 0 4px; }
+/* ---------- 怪物卡片：同一波次的怪并排，卡片本身尽量紧凑 ---------- */
+.mn-list {
+  display: grid; gap: 9px; padding: 9px 0 3px;
+  /* 一排放得下几张就放几张：宽屏 2~3 张、窄屏 1 张 */
+  grid-template-columns: repeat(auto-fill, minmax(246px, 1fr));
+}
+/* 一波只有一只时给宽一点的卡片（440 上限），别拉成整行 */
+.mn-list.one { grid-template-columns: minmax(240px, 440px); }
 .mn {
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px; display: grid; gap: 10px;
+  border-radius: 11px; padding: 9px 10px; display: grid; gap: 7px;
+  align-content: start;
+  /* 卡片里有 11 位数字，min-width:auto 会把 min-content 撑大、导致一排只能放两张 */
+  min-width: 0;
 }
-.mn-top { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 14px; align-items: start; }
-.mn-fig { display: grid; gap: 6px; justify-items: center; }
+.mn-hd { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 9px; align-items: start; }
+.mn-fig { display: block; }
 .mn-art {
-  width: 104px; height: 136px; object-fit: cover; object-position: center top;
-  border-radius: 10px; border: 1px solid var(--border); overflow: hidden;
+  width: 62px; height: 82px; object-fit: cover; object-position: center top;
+  border-radius: 8px; border: 1px solid var(--border); overflow: hidden;
   background: radial-gradient(circle at 50% 15%, rgba(148,163,184,.18), rgba(148,163,184,.04));
 }
 /* 立绘加载失败就换成虚线占位框，不显示破图标 —— 数值才是主体，图只是辅助 */
 .mn-fig.noart::before {
-  content: "无立绘"; width: 104px; height: 136px; display: grid; place-items: center;
-  font-size: 11px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 10px;
+  content: "无立绘"; width: 62px; height: 82px; display: grid; place-items: center;
+  font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 8px;
 }
-.mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 18px; }
+.mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 16px; }
 .mn-name {
-  font-size: 13px; font-weight: 700; text-align: center; line-height: 1.5;
-  word-break: break-word;
+  font-size: 12.5px; font-weight: 700; line-height: 1.45;
+  word-break: break-word; margin-bottom: 3px;
 }
-.mn-name .dl-tag { margin-left: 4px; }
-.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 16px; }
-.at { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
-.at em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.mn-name .dl-tag { margin-left: 4px; font-size: 10px; padding: 0 4px; }
+/* 面板与数值都用 flex 自动换行：卡片宽就排一行，窄就折行，不留大片空白 */
+.mn-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; }
+.at { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; min-width: 0; }
+.at em { font-style: normal; color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
 .at b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.elems { display: inline-flex; gap: 3px; flex-wrap: wrap; }
-.el { width: 18px; height: 18px; display: block; }
+.elems { display: inline-flex; gap: 2px; flex-wrap: wrap; }
+.el { width: 15px; height: 15px; display: block; }
 .mn-nums {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px;
-  border-top: 1px dashed var(--border); padding-top: 9px;
+  display: flex; flex-wrap: wrap; gap: 3px 14px;
+  border-top: 1px dashed var(--border); padding-top: 6px;
 }
-.nu { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; }
-.nu em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.nu { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11.5px; }
+.nu em { font-style: normal; color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
 .nu b { font-weight: 700; font-variant-numeric: tabular-nums; }
-.mn-subs { display: grid; gap: 3px; }
+.mn-subs { display: grid; gap: 2px; }
 .sb {
-  display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center;
-  font-size: 12px; padding: 3px 8px 3px 22px; position: relative;
-  background: rgba(148, 163, 184, 0.05); border-radius: 6px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center;
+  font-size: 11px; padding: 2px 6px 2px 18px; position: relative;
+  background: rgba(148, 163, 184, 0.05); border-radius: 5px;
 }
-.sb::before { content: "└"; position: absolute; left: 8px; color: var(--border-strong); }
+.sb::before { content: "└"; position: absolute; left: 6px; color: var(--border-strong); }
 .sb .sl { color: var(--text-muted); }
 .sb .snum { font-weight: 600; font-variant-numeric: tabular-nums; }
-.sb .sx, .sb .sp { color: var(--text-dim); font-size: 11px; }
-.sb .sp { min-width: 42px; text-align: right; }
+.sb .sx, .sb .sp { color: var(--text-dim); font-size: 10.5px; }
+.sb .sp { min-width: 38px; text-align: right; }
 .sb.inv { background: rgba(244, 81, 30, 0.07); }
 .sb.inv .sl, .sb.inv .snum, .sb.inv .sx, .sb.inv .sp { color: var(--warn); }
 
@@ -482,11 +493,6 @@ table.dl-table {
   color: var(--dl-accent, var(--accent)); background: var(--dl-accent-soft, rgba(56, 189, 248, 0.15));
 }
 .db-d { color: var(--text-muted); }
-/* 宽屏：面板与数值各排一行四列，和上面「波次 / 合计」的横向节奏一致 */
-@media (min-width: 760px) {
-  .mn-attrs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .mn-nums { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
 
 .dl-tag {
   display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
@@ -531,16 +537,12 @@ table.dl-table {
   .dl-sub td { padding: 2px 6px; font-size: 11px; }
   .dl-sub td.sub { padding-left: 18px; }
   .dl-sub td.sub::before { left: 6px; }
-  /* 窄屏：立绘缩到 84×112，面板与数值各两列；副行的「计入」让位给阶段名与数值 */
-  .mn-top { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
-  .mn-art { width: 84px; height: 112px; }
+  /* 窄屏：一排放一张卡片，立绘略大一点点，副行只留阶段名 + 数值 */
+  .mn-list { grid-template-columns: 1fr; }
+  .mn-hd { grid-template-columns: 68px minmax(0, 1fr); }
+  .mn-art, .mn-fig.noart::before { width: 68px; height: 90px; }
   .mn-name { font-size: 12px; }
-  .mn-attrs { gap: 6px 10px; }
-  .mn-nums { gap: 5px 10px; }
-  .nu { font-size: 11.5px; gap: 5px; }
-  /* 窄屏两列时，标签与数值挨着读更顺；宽屏才让数值右对齐成列 */
-  .nu { justify-content: flex-start; }
-  .sb { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; font-size: 11.5px; padding-left: 20px; }
+  .sb { grid-template-columns: minmax(0, 1fr) auto auto; padding-left: 18px; }
   .sb .sx { display: none; }
   .db { grid-template-columns: auto minmax(0, 1fr); font-size: 11.5px; }
 }
@@ -2148,13 +2150,16 @@ footer a { color: var(--text-muted); }
     }).join("");
 
     let html = `<div class="mn">
-      <div class="mn-top">
-        <div class="mn-fig">${art}<div class="mn-name">${name}${tags.join("")}</div></div>
-        <div class="mn-attrs">
-          <span class="at"><em>等级</em><b>${m.lv != null ? m.lv : "—"}</b></span>
-          <span class="at"><em>弱点</em><span class="elems">${elems || "<b>—</b>"}</span></span>
-          <span class="at"><em>速度</em><b>${m.spd != null ? Math.round(Number(m.spd)) : "—"}</b></span>
-          <span class="at"><em>韧性</em><b>${fmtTough(m.tough != null ? Number(m.tough) : null)}</b></span>
+      <div class="mn-hd">
+        <div class="mn-fig">${art}</div>
+        <div class="mn-info">
+          <div class="mn-name">${name}${tags.join("")}</div>
+          <div class="mn-attrs">
+            <span class="at"><em>等级</em><b>${m.lv != null ? m.lv : "—"}</b></span>
+            <span class="at"><em>弱点</em><span class="elems">${elems || "<b>—</b>"}</span></span>
+            <span class="at"><em>速度</em><b>${m.spd != null ? Math.round(Number(m.spd)) : "—"}</b></span>
+            <span class="at"><em>韧性</em><b>${fmtTough(m.tough != null ? Number(m.tough) : null)}</b></span>
+          </div>
         </div>
       </div>
       <div class="mn-nums">
@@ -2242,7 +2247,7 @@ footer a { color: var(--text-muted); }
           <span class="pct">${scope} ${pctOf(w.hp, unitTotal)}</span>
         </div>
         ${waveRuleNote(w)}
-        <div class="mn-list">${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</div>
+        <div class="mn-list${(w.monsters || []).length === 1 ? " one" : ""}">${(w.monsters || []).map(m => monsterRow(m, w.hp)).join("")}</div>
       </div>`).join("");
   }
 
