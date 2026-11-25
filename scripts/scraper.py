@@ -303,6 +303,12 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
     # 无限刷怪波次的血量加成：×(1 + param_list[1])（虚构叙事等玩法）
     unit *= 1.0 + float(infinite_bonus or 0)
 
+    # 「血量系数」= 精英组倍率 × 无限波次加成，也就是社区口径的那个 620%：
+    # 不含 HPBase（基数）、不含 child 的 HPModifyRatio（那是"这一条血占本体多少"），
+    # 也**不含** hard_ratio —— 那个是等级曲线（Lv100 就有 484 倍），
+    # 一并乘进去会变成 3005%，不是玩家理解的「血量系数」。
+    hp_mul = elite_ratio * (1.0 + float(infinite_bonus or 0))
+
     # Boss 多阶段：各阶段血条比例之和（PHASE_OVERRIDE 可覆盖上游配错的情况）
     ratios, phase1_scale = resolve_phases(key, mv)
     ratios = [r * phase1_scale for r in ratios]
@@ -328,6 +334,7 @@ def calc_monster_hp_parts(mid, elite_gid, hard_g, level, tables, is_infinite=Fal
     return {"hp": body + inv_hp, "body": body, "phaseHp": phase_hp, "invHp": inv_hp,
             "invLevel": inv_level_eff, "invAfter": inv_after,
             "lv": int(level or 0),
+            "hpMul": hp_mul,
             "spd": monster_speed(mv, m, elite_gid, hard_g, level, tables, is_infinite),
             "tough": monster_toughness(mv, m, elite_gid, hard_g, level, tables, is_infinite),
             "weak": monster_weak(mid, m, tables),
@@ -544,6 +551,9 @@ def monster_entry(mid, hp, invasion_level, tables, contribution=None, count=1, p
             entry["spd"] = round(float(parts["spd"]), 1)
         if parts.get("tough"):
             entry["tough"] = round(float(parts["tough"]), 2)
+        if parts.get("hpMul"):
+            # 卡片角标「620%」用；前端 ×100 显示
+            entry["hpMul"] = round(float(parts["hpMul"]), 3)
 
     return entry
 

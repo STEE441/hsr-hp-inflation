@@ -453,19 +453,26 @@ table.dl-table {
   font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 9px;
 }
 .mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 16px; }
-/* 数量：贴在立绘右下侧的小胶囊。底边与立绘底边齐平，
-   左边距 = 立绘宽 + 列间距，正好对齐上面第一列（弱点/韧性）的左边缘。
-   配色跟随当前玩法的主题色，和「N 阶段」标签同源，别用灰的（看不清）。 */
-.mn-qty {
+/* 立绘右下侧的小胶囊组：上下两个——「血量系数 620%」在上、「数量 ×1」在下。
+   底边与立绘底边齐平，左边距 = 立绘宽 + 列间距（正好对齐上面「弱点/韧性」的左边缘）。
+   配色跟随当前玩法的主题色；用 flex 居中而不是 line-height 撑着，
+   否则 ×、%、数字混排时视觉重心会偏。 */
+.mn-badges {
   position: absolute; left: calc(100% + var(--mn-gap, 9px)); bottom: 0;
-  font-size: 11px; line-height: 1.45; padding: 0 6px; border-radius: 5px;
+  display: grid; gap: 3px; justify-items: start;
+}
+.mn-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 18px; padding: 0 7px; border-radius: 5px;
+  font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
   color: var(--dl-accent, var(--accent));
   background: var(--dl-accent-soft, rgba(56, 189, 248, 0.18));
   border: 1px solid var(--dl-accent-line, rgba(56, 189, 248, 0.5));
-  font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
-  letter-spacing: 0.2px;
 }
-.mn-info { min-width: 0; padding-bottom: 20px; }
+/* 两个角标同款：上面的「620%」是血量系数、下面的「×1」是这一波的只数 */
+.mn-tag.qty { letter-spacing: 0; }
+.mn-info { min-width: 0; padding-bottom: 40px; }
 .mn-name {
   font-size: 13px; font-weight: 700; line-height: 1.45; margin-bottom: 4px;
   word-break: break-word;
@@ -602,7 +609,7 @@ table.dl-table {
   /* 窄屏：一排放一张卡片，立绘与字号同步收一档 */
   .mn-list, .mn-list.one { grid-template-columns: 1fr; }
   .mn-hd { grid-template-columns: 76px minmax(0, 1fr); }
-  .mn-qty { font-size: 10.5px; }
+  .mn-tag { font-size: 10.5px; height: 17px; padding: 0 6px; min-width: 27px; }
   .mn-art, .mn-fig.noart::before { width: 76px; height: 98px; }
   .mn-name { font-size: 12.5px; }
   .mn-nums { gap: 8px; }
@@ -927,7 +934,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611252009"></script>
+<script src="data/health_data.js?v=202611252236"></script>
 <script>
 (function () {
   "use strict";
@@ -2240,9 +2247,16 @@ footer a { color: var(--text-muted); }
                    onerror="fallbackImg(this,'${ELEM_CDN}${k}.webp')">`;
     }).join("");
 
+    // 血量系数：精英组 × 难度组 × 无限波次加成（620% 这种），数量角标在它下面
+    const hpMul = Number(m.hpMul || 0);
+    const mulTag = hpMul > 0
+      ? `<span class="mn-tag" title="血量系数：精英组 × 难度组 × 波次加成">${Math.round(hpMul * 100)}%</span>`
+      : "";
+    const qtyTag = `<span class="mn-tag qty" title="本波数量">×${m.count || 1}</span>`;
+
     let html = `<div class="mn">
       <div class="mn-hd">
-        <div class="mn-fig">${art}<span class="mn-qty" title="本波数量">×${m.count || 1}</span></div>
+        <div class="mn-fig">${art}<span class="mn-badges">${mulTag}${qtyTag}</span></div>
         <div class="mn-info">
           <div class="mn-name">${name}${tags.join("")}</div>
           <div class="mn-attrs">
