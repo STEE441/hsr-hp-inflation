@@ -495,32 +495,41 @@ table.dl-table {
 .nu em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .nu b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mn-subs { display: grid; gap: 2px; }
-/* 阶段行：血量在最左、百分比单独一列、阶段名在最右。
-   血量的左起点由 alignSubNumbers() 量出（= 上面「血量」数字的左边缘），
-   四行的列宽固定，所以百分比与阶段名都能竖向对齐成两列。 */
+/* 阶段行：└ 点缀 + 血量 +（紧跟）阶段名 ………… 比值（右端与「占本波」的百分号对齐）。
+   血量的左起点由 alignSubNumbers() 量出（= 上面「血量」数字的左边缘）。 */
 .sb {
   display: grid;
-  /* 血量 | 比值 | 弹性空白 | 阶段名。
-     最后一列必须是固定宽度：每行都是独立的 grid，max-content 会按各自文字宽度取，
-     结果还是右对齐；固定 52px + 左对齐，四行的左边缘才真正落在一条竖线上。 */
-  grid-template-columns: 104px 54px minmax(0, 1fr) 52px;
-  column-gap: 10px; align-items: baseline;
-  font-size: 11.5px; border-radius: 5px;
-  padding: 2px 6px 2px calc(6px + var(--subnum-pad, 26px));
+  /* 血量 | 阶段名 | 弹性空白 | 比值。
+     1、2 两列按内容宽度排 → 阶段名紧跟在血量后面，不会隔出老远；
+     最后一列右对齐到行尾（行尾去掉右内边距）→ 百分号与上面「占本波」的百分号对齐。 */
+  /* 血量列的宽度由 alignSubNumbers() 按本卡片里最长的那串数字量出来，
+     四行共用 → 阶段名既紧跟在血量后面，又能竖向对齐（亚婆离那种 5,106,433 / 10,212,866 也能对齐） */
+  grid-template-columns: var(--num-col, 78px) max-content minmax(0, 1fr) max-content;
+  column-gap: 8px; align-items: baseline;
+  font-size: 11.5px; border-radius: 5px; position: relative;
+  padding: 2px 0 2px calc(6px + var(--subnum-pad, 26px));
   background: rgba(148, 163, 184, 0.05);
 }
+/* 层级点缀：位置跟血量缩进联动，永远贴在血量左边一点点 */
+.sb::before {
+  content: "└"; position: absolute; top: 2px; color: var(--border-strong);
+  left: calc(6px + var(--subnum-pad, 26px) - 18px);
+  font-size: 11px; line-height: 1.5; pointer-events: none;
+}
+/* 三个子元素都钉死在第一行：DOM 顺序是「血量 → 比值 → 阶段名」，
+   而视觉列顺序是 1 → 4 → 2；不钉行的话，最后那个列号变小的元素会被自动排到第二行。 */
 .sb .snum {
+  grid-column: 1; grid-row: 1; justify-self: start;
   font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
   color: var(--text);
 }
-.sb .sp {
-  text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 600;
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-/* 阶段名左对齐：四行的「阶段 I / 阶段 II / 贪饕 IV / 阶段 III」左边缘落在同一竖线上
-   （右对齐时长短不一会参差，看着像缩进） */
 .sb .sl {
-  grid-column: 4; text-align: left; color: var(--text-muted); white-space: nowrap;
+  grid-column: 2; grid-row: 1;
+  text-align: left; color: var(--text-muted); white-space: nowrap;
+}
+.sb .sp {
+  grid-column: 4; grid-row: 1; text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .sb.inv { background: rgba(244, 81, 30, 0.07); }
 .sb.inv .sl, .sb.inv .snum, .sb.inv .sp { color: var(--warn); }
@@ -2338,9 +2347,13 @@ footer a { color: var(--text-muted); }
       if (!total || !sub) return;
       // 先清零再量：CSS 里 --subnum-pad 有 26px 的 fallback，
       // 直接读 paddingLeft 会把它算进去，量出来是负值（被裁成 0，等于没对齐）
+      const nums = [...card.querySelectorAll(".sb .snum")];
       card.style.setProperty("--subnum-pad", "0px");
       const pad = total.getBoundingClientRect().left - sub.getBoundingClientRect().left;
       card.style.setProperty("--subnum-pad", Math.max(0, Math.round(pad)) + "px");
+      // 血量列宽取本卡片里最长的那串数字：阶段名既贴着数字，又能在四行之间对齐
+      const numW = Math.max(...nums.map(n => n.getBoundingClientRect().width));
+      card.style.setProperty("--num-col", Math.ceil(numW + 0.5) + "px");
     });
   }
 
