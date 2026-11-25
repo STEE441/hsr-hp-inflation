@@ -488,7 +488,7 @@ table.dl-table {
 /* 数值行：血量在左、占本波在右，两端对齐且强制一行 */
 .mn-nums {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  border-top: 1px dashed var(--border); padding-top: 6px;
+  border-top: 1px dashed var(--border); padding: 6px 10px 0 0;
   white-space: nowrap; overflow: hidden;
 }
 .nu { display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; min-width: 0; }
@@ -507,7 +507,8 @@ table.dl-table {
   grid-template-columns: var(--num-col, 78px) max-content minmax(0, 1fr) max-content;
   column-gap: 8px; align-items: baseline;
   font-size: 11.5px; border-radius: 5px; position: relative;
-  padding: 2px 0 2px calc(6px + var(--subnum-pad, 26px));
+  /* 右侧留 10px：百分比不贴着底色块的圆角边，读起来不别扭 */
+  padding: 2px 10px 2px calc(6px + var(--subnum-pad, 26px));
   background: rgba(148, 163, 184, 0.05);
 }
 /* 层级点缀：位置跟血量缩进联动，永远贴在血量左边一点点 */
