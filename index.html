@@ -453,25 +453,23 @@ table.dl-table {
   font-size: 10px; color: var(--text-dim); border: 1px dashed var(--border-strong); border-radius: 9px;
 }
 .mn-art.ph { display: grid; place-items: center; color: var(--text-dim); font-size: 16px; }
-/* 立绘右下侧的小胶囊组：上下两个——「血量系数 620%」在上、「数量 ×1」在下。
-   底边与立绘底边齐平，左边距 = 立绘宽 + 列间距（正好对齐上面「弱点/韧性」的左边缘）。
-   配色跟随当前玩法的主题色；用 flex 居中而不是 line-height 撑着，
-   否则 ×、%、数字混排时视觉重心会偏。 */
-.mn-badges {
-  position: absolute; left: calc(100% + var(--mn-gap, 9px)); bottom: 0;
-  display: grid; gap: 3px; justify-items: start;
-}
+/* 立绘右侧的两个角标：「×N」钉在立绘底边，「血量系数」浮在「韧性」与「×N」之间
+   （具体 top 由 placeBadges() 量出来，见下方 JS）。两者左边距相同，
+   正好对齐上面「弱点/韧性」那一列的左边缘。 */
 .mn-tag {
+  position: absolute; left: calc(100% + var(--mn-gap, 9px));
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 30px; height: 18px; padding: 0 7px; border-radius: 5px;
+  min-width: 30px; height: 18px; border-radius: 5px;
+  /* 上 1px / 下 0：数字与 × 都没有下伸部，纯几何居中会被看成偏上，往下压半像素 */
+  padding: 1px 7px 0;
   font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap;
   font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
   color: var(--dl-accent, var(--accent));
   background: var(--dl-accent-soft, rgba(56, 189, 248, 0.18));
   border: 1px solid var(--dl-accent-line, rgba(56, 189, 248, 0.5));
 }
-/* 两个角标同款：上面的「620%」是血量系数、下面的「×1」是这一波的只数 */
-.mn-tag.qty { letter-spacing: 0; }
+.mn-tag.qty { bottom: 0; letter-spacing: 0; }
+.mn-tag.mul { top: 0; }
 .mn-info { min-width: 0; padding-bottom: 40px; }
 .mn-name {
   font-size: 13px; font-weight: 700; line-height: 1.45; margin-bottom: 4px;
@@ -609,8 +607,10 @@ table.dl-table {
   /* 窄屏：一排放一张卡片，立绘与字号同步收一档 */
   .mn-list, .mn-list.one { grid-template-columns: 1fr; }
   .mn-hd { grid-template-columns: 76px minmax(0, 1fr); }
-  .mn-tag { font-size: 10.5px; height: 17px; padding: 0 6px; min-width: 27px; }
-  .mn-art, .mn-fig.noart::before { width: 76px; height: 98px; }
+  .mn-tag { font-size: 10.5px; height: 17px; padding: 1px 6px 0; min-width: 27px; }
+  /* 98 高时「韧性」与立绘底边之间只有 39px，塞不下两个 17px 角标（会压住韧性行）；
+     拉到 110 让出 51px，角标上下各留 8px 左右 */
+  .mn-art, .mn-fig.noart::before { width: 76px; height: 110px; }
   .mn-name { font-size: 12.5px; }
   .mn-nums { gap: 8px; }
   .nu { font-size: 11.5px; }
@@ -2250,13 +2250,13 @@ footer a { color: var(--text-muted); }
     // 血量系数：精英组 × 难度组 × 无限波次加成（620% 这种），数量角标在它下面
     const hpMul = Number(m.hpMul || 0);
     const mulTag = hpMul > 0
-      ? `<span class="mn-tag" title="血量系数：精英组 × 难度组 × 波次加成">${Math.round(hpMul * 100)}%</span>`
+      ? `<span class="mn-tag mul" title="血量系数：精英组 × 难度组 × 波次加成">${Math.round(hpMul * 100)}%</span>`
       : "";
     const qtyTag = `<span class="mn-tag qty" title="本波数量">×${m.count || 1}</span>`;
 
     let html = `<div class="mn">
       <div class="mn-hd">
-        <div class="mn-fig">${art}<span class="mn-badges">${mulTag}${qtyTag}</span></div>
+        <div class="mn-fig">${art}${mulTag}${qtyTag}</div>
         <div class="mn-info">
           <div class="mn-name">${name}${tags.join("")}</div>
           <div class="mn-attrs">
@@ -2380,6 +2380,28 @@ footer a { color: var(--text-muted); }
       .replace(/(\d+(?:\.\d+)?)(%?)/g, '<span class="hl">$1$2</span>');
   }
 
+  // 「血量系数」角标浮在「韧性」行与「×N」之间：取两者的中点，别用固定间距
+  // （名字换行、手机端字号变化时都会挤）。上下各留 2px 防贴边。
+  function placeBadges(root) {
+    const sc = root || document.getElementById("detail-body") || document;
+    sc.querySelectorAll(".mn").forEach(card => {
+      const mul = card.querySelector(".mn-tag.mul");
+      const qty = card.querySelector(".mn-tag.qty");
+      const fig = card.querySelector(".mn-fig");
+      if (!mul || !qty || !fig) return;
+      const attrs = card.querySelector(".mn-attrs");
+      const fr = fig.getBoundingClientRect();
+      const qr = qty.getBoundingClientRect();
+      const ar = attrs ? attrs.getBoundingClientRect() : null;
+      const h = mul.getBoundingClientRect().height || 18;
+      const topEdge = ar && ar.height ? ar.bottom : fr.top;
+      let y = (topEdge + qr.top) / 2 - h / 2;
+      y = Math.max(y, topEdge + 2);
+      y = Math.min(y, qr.top - h - 2);
+      mul.style.top = Math.round(y - fr.top) + "px";
+    });
+  }
+
   function debuffBlock(unit) {
     const list = unit.debuffs || [];
     if (!list.length) return "";
@@ -2492,7 +2514,7 @@ footer a { color: var(--text-muted); }
     }).join("");
 
     // 布局要等 DOM 落地、拿到真实容器宽度后才能判断；用 rAF 保证这一刻宽度已确定
-    requestAnimationFrame(() => { layoutCards(body); alignSubNumbers(body); });
+    requestAnimationFrame(() => { layoutCards(body); alignSubNumbers(body); placeBadges(body); });
   }
 
   async function openDetail(index) {
@@ -2613,8 +2635,10 @@ footer a { color: var(--text-muted); }
     // 明细弹层开着的时候，窗口变宽/变窄要重新决定「一波几张并排」
     const mask = document.getElementById("detail-modal");
     if (mask && !mask.hidden) {
-      layoutCards(document.getElementById("detail-body"));
-      alignSubNumbers(document.getElementById("detail-body"));
+      const db = document.getElementById("detail-body");
+      layoutCards(db);
+      alignSubNumbers(db);
+      placeBadges(db);
     }
   }
 
