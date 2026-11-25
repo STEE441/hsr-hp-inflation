@@ -1113,6 +1113,19 @@ def tag_debuffs(group):
 # 它会落在「含测试服」视图里，正式服视图看不到。等 nanoka 正式分配后可保留（值相同）。
 PEAK_VERSION_FIX = {"12": "4.8"}
 
+# 上游个别赛季的 name 是占位串：赛季 8 的 name 写成「<unbreak>4.4</unbreak>异相仲裁」，
+# 清完标签就是「4.4异相仲裁」，不是赛季名。这里按 赛季ID → 正式名 覆盖，
+# **只影响显示名，不碰任何数值**。4.4 的正式名是「尘世卷中」（用户 2026-11-25 指出）。
+PEAK_NAME_FIX = {"8": "尘世卷中"}
+
+
+def peak_season_name(season_id, peak_map, detail):
+    """赛季显示名：本地修正优先，其次上游 maze_peak 的 zh，最后 peak/<id>.json 的 name。"""
+    fixed = PEAK_NAME_FIX.get(str(season_id))
+    if fixed:
+        return fixed
+    return clean_text(peak_map.get(season_id, {}).get("zh") or detail.get("name") or "")
+
 
 # ---------------------------------------------------------------------------
 # 异相仲裁 (peak)
@@ -1169,7 +1182,7 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
         data.append({
             "version": version,
             "seasonId": season_id,
-            "name": clean_text(peak_map.get(season_id, {}).get("zh") or detail.get("name") or ""),
+            "name": peak_season_name(season_id, peak_map, detail),
             "knights": round(knights),
             "knightDetails": knight_details,
             "king": round(king),
@@ -1177,7 +1190,7 @@ def fetch_divergent_arbitration(ver, tables, live_versions, details=None):
         })
         if details is not None:
             details[season_id] = {
-                "name": clean_text(peak_map.get(season_id, {}).get("zh") or detail.get("name") or ""),
+                "name": peak_season_name(season_id, peak_map, detail),
                 "total": round(knights + king + king_abyss),
                 "groups": [
                     {"key": "knights", "label": "三骑士", "hp": round(knights), "units": knight_units},

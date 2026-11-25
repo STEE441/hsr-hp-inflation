@@ -495,15 +495,33 @@ table.dl-table {
 .nu em { font-style: normal; color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .nu b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mn-subs { display: grid; gap: 2px; }
+/* 阶段行：血量在最左、百分比单独一列、阶段名在最右。
+   血量的左起点由 alignSubNumbers() 量出（= 上面「血量」数字的左边缘），
+   四行的列宽固定，所以百分比与阶段名都能竖向对齐成两列。 */
 .sb {
-  display: flex; align-items: baseline; gap: 7px;
-  font-size: 11.5px; padding: 2px 6px 2px 17px; position: relative;
-  background: rgba(148, 163, 184, 0.05); border-radius: 5px;
+  display: grid;
+  /* 血量 | 比值 | 弹性空白 | 阶段名。
+     最后一列必须是固定宽度：每行都是独立的 grid，max-content 会按各自文字宽度取，
+     结果还是右对齐；固定 52px + 左对齐，四行的左边缘才真正落在一条竖线上。 */
+  grid-template-columns: 104px 54px minmax(0, 1fr) 52px;
+  column-gap: 10px; align-items: baseline;
+  font-size: 11.5px; border-radius: 5px;
+  padding: 2px 6px 2px calc(6px + var(--subnum-pad, 26px));
+  background: rgba(148, 163, 184, 0.05);
 }
-.sb::before { content: "└"; position: absolute; left: 5px; color: var(--border-strong); }
-.sb .sl { color: var(--text-muted); white-space: nowrap; }
-.sb .sp { color: var(--text-dim); font-size: 10.5px; white-space: nowrap; }
-.sb .snum { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb .snum {
+  font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: var(--text);
+}
+.sb .sp {
+  text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* 阶段名左对齐：四行的「阶段 I / 阶段 II / 贪饕 IV / 阶段 III」左边缘落在同一竖线上
+   （右对齐时长短不一会参差，看着像缩进） */
+.sb .sl {
+  grid-column: 4; text-align: left; color: var(--text-muted); white-space: nowrap;
+}
 .sb.inv { background: rgba(244, 81, 30, 0.07); }
 .sb.inv .sl, .sb.inv .snum, .sb.inv .sp { color: var(--warn); }
 
@@ -521,7 +539,12 @@ table.dl-table {
   padding: 0 7px; border-radius: 5px; justify-self: start;
   color: var(--dl-accent, var(--accent)); background: var(--dl-accent-soft, rgba(56, 189, 248, 0.15));
 }
-.db-d { font-size: 12px; line-height: 1.7; color: var(--text-muted); }
+/* 描述文字要「实」：用正文色 + 500 字重，别再发灰；数字与百分号单独上主题色 */
+.db-d { font-size: 12px; line-height: 1.7; color: var(--text); font-weight: 500; }
+.db-d .hl {
+  color: var(--dl-accent, var(--accent)); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 .dl-tag {
   display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
@@ -894,7 +917,7 @@ footer a { color: var(--text-muted); }
 <!-- 数据文件的版本号查询串用于破除浏览器缓存：数据定期抓取更新，
      若沿用固定的 URL，访问者可能长时间看到旧数据（早期因此出现过
      「虚构/末日版本号显示成 s 开头」的假象）。每次重新抓取后请同步更新此处的日期。 -->
-<script src="data/health_data.js?v=202611241647"></script>
+<script src="data/health_data.js?v=202611252009"></script>
 <script>
 (function () {
   "use strict";
@@ -2165,6 +2188,15 @@ footer a { color: var(--text-muted); }
     }
     img.remove();
   };
+  // 阶段间的比值（第 1 阶段 = 100%）：接近整数就显示整数，否则保留一位小数。
+  // 4.8 王棋实测 100% / 100% / 235%，贪饕 98%。
+  function ratioPct(v, base) {
+    if (!base || !isFinite(base) || !isFinite(v)) return "—";
+    const r = (v / base) * 100;
+    const rounded = Math.round(r);
+    return (Math.abs(r - rounded) < 0.05 ? rounded : Number(r.toFixed(1))) + "%";
+  }
+
   const fmtTough = v => (v == null || !isFinite(v)) ? "—"
     : (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : Number(v).toFixed(2));
 
@@ -2225,17 +2257,23 @@ footer a { color: var(--text-muted); }
       Math.max(1, Number(m.invAfter) || ph.length || 1),
       Math.max(ph.length, 1)
     );
-    const subRow = (label, v, share, cls) =>
-      `<div class="sb${cls ? " " + cls : ""}"><span class="sl">${label}</span>` +
-      (share != null ? `<span class="sp">${pctOf(share, waveTotal)}</span>` : "") +
-      `<span class="snum">${fmtFull(v)}</span></div>`;
+    // 副行百分比改用「比值」而不是「占总量」：
+    // 第 1 阶段恒为 100%，后面每条血都是「第 1 阶段的百分之多少」。
+    // 例：4.8 王棋 133,425,729 / 133,425,730 / 贪饕 130,757,214 / 313,550,464
+    //     → 100% / 100% / 98% / 235%，比"占总量 18.8%"更容易看出阶段长度关系。
+    const phaseBase = ph.length ? ph[0] : Math.max(0, (m.hp || 0) - inv);
+    const subRow = (label, v, cls) =>
+      `<div class="sb${cls ? " " + cls : ""}">` +
+      `<b class="snum">${fmtFull(v)}</b>` +
+      `<span class="sp">${ratioPct(v, phaseBase)}</span>` +
+      `<span class="sl">${label}</span></div>`;
     // 贪饕条必须带 inv 类：不带就会套用普通副行的灰底灰字，看不出是「额外一条血」
-    const invRow = () => subRow(`贪饕 ${roman(m.inv)}`, inv, invShare, "inv");
+    const invRow = () => subRow(`贪饕 ${roman(m.inv)}`, inv, "inv");
 
     let subs = "";
     if (ph.length > 1) {
       ph.forEach((v, i) => {
-        subs += subRow(`第 ${i + 1} 阶段`, v, v);
+        subs += subRow(`阶段 ${roman(i + 1)}`, v);
         if (inv > 0 && i + 1 === invAfter) subs += invRow();
       });
     } else if (inv > 0) {
@@ -2290,11 +2328,35 @@ footer a { color: var(--text-muted); }
     });
   }
 
+  // 每张卡片量一次：让副行的血量正好从上面「血量」那个数字的左边缘开始。
+  // 纯 CSS 做不到（「血量」两个字宽度随字体变），所以放在渲染后的 rAF 里量。
+  function alignSubNumbers(root) {
+    const sc = root || document.getElementById("detail-body") || document;
+    sc.querySelectorAll(".mn").forEach(card => {
+      const total = card.querySelector(".mn-nums .nu b");
+      const sub = card.querySelector(".sb .snum");
+      if (!total || !sub) return;
+      // 先清零再量：CSS 里 --subnum-pad 有 26px 的 fallback，
+      // 直接读 paddingLeft 会把它算进去，量出来是负值（被裁成 0，等于没对齐）
+      card.style.setProperty("--subnum-pad", "0px");
+      const pad = total.getBoundingClientRect().left - sub.getBoundingClientRect().left;
+      card.style.setProperty("--subnum-pad", Math.max(0, Math.round(pad)) + "px");
+    });
+  }
+
+  // 描述里的数字与百分号单独上色（只在渲染时包 span，不动入库数据）。
+  // 先转义尖括号：上游文案偶尔带残留标签，不能直接当 HTML 用。
+  function hlNums(text) {
+    return String(text || "")
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/(\d+(?:\.\d+)?)(%?)/g, '<span class="hl">$1$2</span>');
+  }
+
   function debuffBlock(unit) {
     const list = unit.debuffs || [];
     if (!list.length) return "";
     return `<div class="dl-debuffs">` + list.map(d =>
-      `<span class="db-n">${d.name}</span><span class="db-d">${d.desc || ""}</span>`
+      `<span class="db-n">${d.name}</span><span class="db-d">${hlNums(d.desc)}</span>`
     ).join("") + `</div>`;
   }
 
@@ -2402,7 +2464,7 @@ footer a { color: var(--text-muted); }
     }).join("");
 
     // 布局要等 DOM 落地、拿到真实容器宽度后才能判断；用 rAF 保证这一刻宽度已确定
-    requestAnimationFrame(() => layoutCards(body));
+    requestAnimationFrame(() => { layoutCards(body); alignSubNumbers(body); });
   }
 
   async function openDetail(index) {
@@ -2522,7 +2584,10 @@ footer a { color: var(--text-muted); }
     }
     // 明细弹层开着的时候，窗口变宽/变窄要重新决定「一波几张并排」
     const mask = document.getElementById("detail-modal");
-    if (mask && !mask.hidden) layoutCards(document.getElementById("detail-body"));
+    if (mask && !mask.hidden) {
+      layoutCards(document.getElementById("detail-body"));
+      alignSubNumbers(document.getElementById("detail-body"));
+    }
   }
 
   let resizeTimer = null;
